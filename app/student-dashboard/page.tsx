@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { Suspense, useEffect, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { supabase } from "../../lib/supabase";
 
@@ -11,7 +11,7 @@ type Profile = {
   role: string | null;
 };
 
-export default function Dashboard() {
+function StudentDashboard() {
   const router = useRouter();
   const searchParams = useSearchParams();
 
@@ -74,13 +74,8 @@ export default function Dashboard() {
     return (
       <main className="min-h-screen bg-gray-50 flex items-center justify-center">
         <div className="text-center">
-          <div className="text-3xl font-bold text-green-600">
-            Kove
-          </div>
-
-          <p className="mt-2 text-gray-500">
-            Loading your Kove...
-          </p>
+          <div className="text-3xl font-bold text-green-600">Kove</div>
+          <p className="mt-2 text-gray-500">Loading your Kove...</p>
         </div>
       </main>
     );
@@ -147,9 +142,7 @@ export default function Dashboard() {
               {profile?.full_name || "My Kove"}
             </h2>
 
-            <p className="mt-2 break-all text-sm text-gray-500">
-              {email}
-            </p>
+            <p className="mt-2 break-all text-sm text-gray-500">{email}</p>
 
             {profile?.role && (
               <span className="mt-4 inline-block rounded-full bg-green-100 px-3 py-1 text-xs font-medium capitalize text-green-700">
@@ -198,9 +191,7 @@ export default function Dashboard() {
         </div>
 
         <div className="mt-8 rounded-2xl border bg-white p-8 shadow-sm">
-          <h2 className="text-xl font-semibold text-gray-900">
-            Your MyKove
-          </h2>
+          <h2 className="text-xl font-semibold text-gray-900">Your MyKove</h2>
 
           <p className="mt-2 text-gray-500">
             Your home base for finding, saving, and managing spaces.
@@ -224,9 +215,7 @@ export default function Dashboard() {
               className="rounded-xl bg-gray-50 p-5 text-left transition hover:bg-gray-100"
             >
               <div className="text-2xl">❤️</div>
-              <p className="mt-3 font-medium text-gray-900">
-                Saved Spaces
-              </p>
+              <p className="mt-3 font-medium text-gray-900">Saved Spaces</p>
               <p className="mt-1 text-sm text-gray-500">
                 Places you've saved.
               </p>
@@ -236,9 +225,7 @@ export default function Dashboard() {
               className="rounded-xl bg-gray-50 p-5 text-left transition hover:bg-gray-100"
             >
               <div className="text-2xl">📅</div>
-              <p className="mt-3 font-medium text-gray-900">
-                Bookings
-              </p>
+              <p className="mt-3 font-medium text-gray-900">Bookings</p>
               <p className="mt-1 text-sm text-gray-500">
                 Manage your bookings.
               </p>
@@ -249,9 +236,7 @@ export default function Dashboard() {
               className="rounded-xl bg-gray-50 p-5 text-left transition hover:bg-gray-100"
             >
               <div className="text-2xl">👤</div>
-              <p className="mt-3 font-medium text-gray-900">
-                Profile
-              </p>
+              <p className="mt-3 font-medium text-gray-900">Profile</p>
               <p className="mt-1 text-sm text-gray-500">
                 Manage your account.
               </p>
@@ -262,3 +247,21 @@ export default function Dashboard() {
     </main>
   );
 }
+
+export default function Dashboard() {
+  return (
+    <Suspense
+      fallback={
+        <main className="min-h-screen bg-gray-50 flex items-center justify-center">
+          <div className="text-center">
+            <div className="text-3xl font-bold text-green-600">Kove</div>
+            <p className="mt-2 text-gray-500">Loading your Kove...</p>
+          </div>
+        </main>
+      }
+    >
+      <StudentDashboard />
+    </Suspense>
+  );
+}
+
