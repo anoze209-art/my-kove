@@ -161,11 +161,12 @@ export default function Dashboard() {
             <p className="mt-2 text-sm text-gray-500">
               Discover spaces that fit your needs.
             </p>
-            <button
-              onClick={() => router.push("/explore")}
-              className="mt-5 rounded-lg bg-green-600 px-4 py-2 text-sm font-medium text-white hover:bg-green-700"
-              Explore Spaces
-            </button>
+           <button
+  onClick={() => router.push("/explore")}
+  className="mt-5 rounded-lg bg-green-600 px-4 py-2 text-sm font-medium text-white hover:bg-green-700"
+>
+  Explore Spaces
+</button>
           </div>
           <div className="rounded-2xl bg-white p-6 shadow-sm border">
             <p className="text-sm text-gray-500">
