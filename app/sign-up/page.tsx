@@ -1,4 +1,5 @@
 "use client";
+
 import { FormEvent, useState } from "react";
 import Link from "next/link";
 import { supabase } from "../../lib/supabase";
@@ -12,17 +13,20 @@ export default function SignUp() {
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState("");
   const [error, setError] = useState("");
+
   async function handleSignUp(e: FormEvent<HTMLFormElement>) {
     e.preventDefault();
+
     setLoading(true);
     setMessage("");
     setError("");
+
     try {
       const { data, error } = await supabase.auth.signUp({
         email: email.trim(),
         password,
         options: {
-         emailRedirectTo: `${window.location.origin}/auth/callback?next=/dashboard%3Fwelcome%3Dnew`,
+          emailRedirectTo: `${window.location.origin}/auth/callback?next=/dashboard`,
           data: {
             full_name: fullName.trim(),
             phone: phone.trim(),
@@ -30,6 +34,7 @@ export default function SignUp() {
           },
         },
       });
+
       if (error) {
         setError(error.message);
         return;
@@ -39,6 +44,7 @@ export default function SignUp() {
         setError("Account could not be created.");
         return;
       }
+
       if (!data.session) {
         setMessage(
           "Account created successfully. Please check your email and click the confirmation link. You will then be taken directly to your dashboard."
@@ -46,7 +52,9 @@ export default function SignUp() {
         return;
       }
 
-      window.location.href = "/dashboard?welcome=new";
+      // If email confirmation is disabled, Supabase gives us a session
+      // immediately and the user can go straight to the dashboard.
+      window.location.href = "/dashboard";
     } catch (err) {
       console.error(err);
       setError("Something went wrong while creating your account.");
@@ -58,7 +66,6 @@ export default function SignUp() {
   return (
     <main className="min-h-screen flex items-center justify-center bg-white px-4 py-10">
       <div className="w-full max-w-md">
-
         <div className="text-center mb-8">
           <h1 className="text-3xl font-bold text-green-600">
             Kove
@@ -70,7 +77,6 @@ export default function SignUp() {
         </div>
 
         <div className="rounded-2xl border border-gray-200 bg-white p-6 shadow-sm">
-
           <h2 className="text-2xl font-semibold text-gray-800">
             Create your account
           </h2>
@@ -80,7 +86,6 @@ export default function SignUp() {
           </p>
 
           <form onSubmit={handleSignUp} className="mt-6 space-y-4">
-
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">
                 Full Name
@@ -177,7 +182,6 @@ export default function SignUp() {
             >
               {loading ? "Creating Account..." : "Create Account"}
             </button>
-
           </form>
 
           <p className="mt-6 text-center text-sm text-gray-500">
@@ -189,9 +193,9 @@ export default function SignUp() {
               Sign in
             </Link>
           </p>
-
         </div>
       </div>
     </main>
   );
 }
+
