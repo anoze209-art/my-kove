@@ -34,17 +34,31 @@ export default function Dashboard() {
           return;
         }
         setEmail(user.email ?? "");
-        if (user.created_at && user.last_sign_in_at) {
-          const createdAt = new Date(user.created_at).getTime();
-          const lastSignInAt = new Date(user.last_sign_in_at).getTime();
+       const { data: profileData, error: profileError } = await supabase
+  .from("profiles")
+  .select("id, full_name, phone, role, has_seen_welcome")
+  .eq("id", user.id)
+  .maybeSingle();
 
-          const difference = Math.abs(lastSignInAt - createdAt);
-          const NEW_USER_WINDOW = 60 * 1000;
+if (profileError) {
+  console.error("Profile error:", profileError);
+  setError(profileError.message);
+}
 
-          setIsNewUser(difference <= NEW_USER_WINDOW);
-        } else {
-          setIsNewUser(false);
-        }
+if (profileData) {
+  setProfile(profileData);
+
+  const isFirstVisit = profileData.has_seen_welcome === false;
+
+  setIsNewUser(isFirstVisit);
+
+  if (isFirstVisit) {
+    await supabase
+      .from("profiles")
+      .update({ has_seen_welcome: true })
+      .eq("id", user.id);
+  }
+}
 
         const { data: profileData, error: profileError } = await supabase
           .from("profiles")
