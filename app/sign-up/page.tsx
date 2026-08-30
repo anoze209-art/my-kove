@@ -109,19 +109,6 @@ export default function SignUp() {
             onChange={(e) => setPassword(e.target.value)}
             className="mb-4 w-full rounded-xl border border-gray-300 bg-white px-4 py-3 text-gray-900 placeholder:text-gray-400 outline-none focus:border-green-600"
           />
-
-          <label className="mb-1 block text-sm font-medium text-gray-700">
-            Account Type
-          </label>
-          <select
-            value={role}
-            onChange={(e) => setRole(e.target.value)}
-            className="mb-6 w-full rounded-xl border border-gray-300 bg-white px-4 py-3 text-gray-900 outline-none focus:border-green-600"
-          >
-            <option value="Student">Student</option>
-            <option value="Landlord">Landlord</option>
-          </select>
-
           <button
             type="submit"
             disabled={loading}
