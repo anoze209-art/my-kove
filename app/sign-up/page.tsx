@@ -26,7 +26,6 @@ export default function SignUp() {
         data: {
           full_name: fullName,
           phone,
-          role,
         },
       },
     });
@@ -84,7 +83,6 @@ export default function SignUp() {
             value={phone}
             onChange={(e) => setPhone(e.target.value)}
             className="mb-4 w-full rounded-xl border border-gray-300 bg-white px-4 py-3 text-gray-900 placeholder:text-gray-400 outline-none focus:border-green-600"
-            placeholder="+234 800 000 0000"
           />
 
           <label className="mb-1 block text-sm font-medium text-gray-700">
