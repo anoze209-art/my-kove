@@ -44,7 +44,7 @@ export default function Home() {
 
           <div className="flex items-center gap-3 md:hidden">
             <Link
-              href="/owner"
+              href="/property-owners"
               className="rounded-full border border-gray-700 px-4 py-2 text-sm font-medium text-gray-200"
             >
               List Property
@@ -95,7 +95,7 @@ export default function Home() {
           </div>
           <div className="mx-auto mt-16 max-w-4xl">
             <Link
-              href="/owner"
+              href="/property-owners"
               className="group block rounded-2xl border border-gray-800 bg-gray-900 p-6 hover:border-green-700"
             >
               <div className="flex flex-col gap-5 sm:flex-row sm:items-center sm:justify-between">
@@ -338,7 +338,7 @@ export default function Home() {
               </div>
 
               <Link
-                href="/owner"
+                href="/property-owners"
                 className="shrink-0 rounded-full bg-green-600 px-7 py-3.5 text-center font-semibold text-white hover:bg-green-500"
               >
                 List Your Property
@@ -384,7 +384,7 @@ export default function Home() {
               Explore
             </Link>
 
-            <Link href="/owner" className="hover:text-green-400">
+            <Link href="/property-owners" className="hover:text-green-400">
               Property Owners
             </Link>
 
