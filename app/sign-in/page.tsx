@@ -60,7 +60,6 @@ export default function SignIn() {
           </label> <input type="password" required value={password}
             onChange={(e) => setPassword(e.target.value)}
             className="mb-6 w-full rounded-xl border border-gray-300 bg-white px-4 py-3 text-gray-900 placeholder:text-gray-400 outline-none focus:border-green-600"
-            placeholder="••••••••"
           />
 
           <button
