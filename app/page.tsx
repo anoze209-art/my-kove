@@ -21,7 +21,7 @@ export default function Home() {
             </Link>
 
             <Link
-              href="/owner"
+              href="/property-owners"
               className="text-sm font-medium text-gray-300 hover:text-green-400"
             >
               For Property Owners
