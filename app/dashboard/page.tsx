@@ -116,10 +116,10 @@ export default function Dashboard() {
             MYKOVE DASHBOARD
           </p>
           <h2 className="mt-1 text-3xl font-bold text-gray-900">
-            {isNewUser ? "Welcome to MyKove" : "Welcome back"}
-            {profile?.full_name ? `, ${profile.full_name}` : ""}
-            {" 👋"}
-          </h2>
+  Welcome
+  {profile?.full_name ? `, ${profile.full_name}` : ""}
+  {" 👋"}
+</h2>
           <p className="mt-2 text-gray-500">
             {isNewUser
               ? "Your MyKove journey starts here. Let's find your perfect space."
