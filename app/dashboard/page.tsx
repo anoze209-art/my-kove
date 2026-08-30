@@ -34,35 +34,10 @@ export default function Dashboard() {
           return;
         }
         setEmail(user.email ?? "");
-       const { data: profileData, error: profileError } = await supabase
-  .from("profiles")
-  .select("id, full_name, phone, role, has_seen_welcome")
-  .eq("id", user.id)
-  .maybeSingle();
-
-if (profileError) {
-  console.error("Profile error:", profileError);
-  setError(profileError.message);
-}
-
-if (profileData) {
-  setProfile(profileData);
-
-  const isFirstVisit = profileData.has_seen_welcome === false;
-
-  setIsNewUser(isFirstVisit);
-
-  if (isFirstVisit) {
-    await supabase
-      .from("profiles")
-      .update({ has_seen_welcome: true })
-      .eq("id", user.id);
-  }
-}
 
         const { data: profileData, error: profileError } = await supabase
           .from("profiles")
-          .select("id, full_name, phone, role")
+          .select("id, full_name, phone, role, has_seen_welcome")
           .eq("id", user.id)
           .maybeSingle();
 
@@ -73,6 +48,17 @@ if (profileData) {
 
         if (profileData) {
           setProfile(profileData);
+
+          const isFirstVisit = profileData.has_seen_welcome === false;
+
+          setIsNewUser(isFirstVisit);
+
+          if (isFirstVisit) {
+            await supabase
+              .from("profiles")
+              .update({ has_seen_welcome: true })
+              .eq("id", user.id);
+          }
         }
       } catch (err) {
         console.error("Dashboard error:", err);
@@ -106,7 +92,6 @@ if (profileData) {
 
   return (
     <main className="min-h-screen bg-gray-50">
-      {/* Header */}
       <header className="border-b bg-white">
         <div className="mx-auto flex max-w-6xl items-center justify-between px-6 py-4">
           <div>
@@ -159,95 +144,3 @@ if (profileData) {
             <p className="mt-2 break-all text-sm text-gray-500">
               {email}
             </p>
-            {profile?.role && (
-              <span className="mt-4 inline-block rounded-full bg-green-100 px-3 py-1 text-xs font-medium text-green-700">
-                {profile.role}
-              </span>
-            )}
-          </div>
-          <div className="rounded-2xl bg-white p-6 shadow-sm border">
-            <p className="text-sm text-gray-500">
-              My Space
-            </p>
-            <h3 className="mt-2 text-xl font-semibold text-gray-900">
-              Find your Kove
-            </h3>
-            <p className="mt-2 text-sm text-gray-500">
-              Discover spaces that fit your needs.
-            </p>
-           <button
-  onClick={() => router.push("/explore")}
-  className="mt-5 rounded-lg bg-green-600 px-4 py-2 text-sm font-medium text-white hover:bg-green-700"
->
-  Explore Spaces
-</button>
-          </div>
-          <div className="rounded-2xl bg-white p-6 shadow-sm border">
-            <p className="text-sm text-gray-500">
-              Profile
-            </p>
-            <h3 className="mt-2 text-xl font-semibold text-gray-900">
-              Your Information
-            </h3>
-            <p className="mt-2 text-sm text-gray-500">
-              Keep your Kove profile up to date.
-            </p>
-            <button
-              onClick={() => router.push("/profile")}
-              className="mt-5 rounded-lg border border-gray-300 px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-100"
-            >
-              Edit Profile
-            </button>
-          </div>
-        </div>
-        <div className="mt-8 rounded-2xl bg-white p-8 shadow-sm border">
-          <h3 className="text-xl font-semibold text-gray-900">
-            Your MyKove
-          </h3>
-          <p className="mt-2 text-gray-500">
-            This is your home base. More features will appear here as we build
-            out MyKove.
-          </p>
-          <div className="mt-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-            <div className="rounded-xl bg-gray-50 p-5">
-              <div className="text-2xl">🏠</div>
-              <p className="mt-3 font-medium">
-                My Spaces
-              </p>
-              <p className="mt-1 text-sm text-gray-500">
-                Your saved spaces
-              </p>
-            </div>
-            <div className="rounded-xl bg-gray-50 p-5">
-              <div className="text-2xl">🔎</div>
-              <p className="mt-3 font-medium">
-                Explore
-              </p>
-              <p className="mt-1 text-sm text-gray-500">
-                Find your next space
-              </p>
-            </div>
-            <div className="rounded-xl bg-gray-50 p-5">
-              <div className="text-2xl">❤️</div>
-              <p className="mt-3 font-medium">
-                Saved
-              </p>
-              <p className="mt-1 text-sm text-gray-500">
-                Places you like
-              </p>
-            </div>
-            <div className="rounded-xl bg-gray-50 p-5">
-              <div className="text-2xl">👤</div>
-              <p className="mt-3 font-medium">
-                Profile
-              </p>
-              <p className="mt-1 text-sm text-gray-500">
-                Manage your account
-              </p>
-            </div>
-          </div>
-        </div>
-      </section>
-    </main>
-  );
-}
