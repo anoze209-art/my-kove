@@ -119,7 +119,7 @@ export default function PropertyOwnerSignUp() {
             value={email}
             onChange={(e) => setEmail(e.target.value)}
             className="mb-5 w-full rounded-xl border border-gray-700 bg-gray-950 px-4 py-3 text-white placeholder:text-gray-600 outline-none transition focus:border-green-500 focus:ring-1 focus:ring-green-500"
-            placeholder="you@example.com"
+            placeholder="Your email"
           />
 
           <label className="mb-2 block text-sm font-medium text-gray-300">
