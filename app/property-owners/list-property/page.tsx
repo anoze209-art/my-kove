@@ -479,10 +479,10 @@ export default function ListProperty() {
                 <input
                   type="number"
                   required
-                  min="1"
+                  min="0"
                   value={units}
                   onChange={(e) => setUnits(e.target.value)}
-                  placeholder="e.g. 10"
+                  placeholder="Available Rooms/Units"
                   className={inputClass}
                 />
               </div>
@@ -667,7 +667,7 @@ export default function ListProperty() {
                     type="email"
                     value={contactEmail}
                     onChange={(e) => setContactEmail(e.target.value)}
-                    placeholder="you@example.com"
+                    placeholder="Your Email"
                     className={inputClass}
                   />
                 </div>
