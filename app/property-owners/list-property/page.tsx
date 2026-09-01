@@ -116,17 +116,13 @@ export default function ListProperty() {
 
   const resolvedType =
     propertyType === "other" ? customType || "Other" : propertyType;
-
   const allFacilities = [...facilities, ...customFacilities];
-
   const coverPhoto =
     photos.find((photo) => photo.id === coverPhotoId) ?? photos[0];
   const otherPhotos = photos.filter((photo) => photo.id !== coverPhoto?.id);
-
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     setLoading(true);
-
     setTimeout(() => {
       setLoading(false);
       alert("Property submitted for verification.");
@@ -159,7 +155,6 @@ export default function ListProperty() {
             </button>
           </div>
         </header>
-
         <section className="mx-auto max-w-4xl px-5 py-8 sm:px-6 sm:py-12">
           <div className="mb-6 rounded-xl border border-green-900 bg-green-950/40 p-4 text-sm text-green-200/80">
             This is a preview of how your listing will look. Nothing has been
@@ -182,7 +177,6 @@ export default function ListProperty() {
                 </div>
               )}
             </div>
-
             <div className="p-6 sm:p-8">
               <div className="flex flex-wrap items-start justify-between gap-3">
                 <div>
@@ -200,7 +194,6 @@ export default function ListProperty() {
                   </div>
                 )}
               </div>
-
               {address && (
                 <p className="mt-4 text-sm text-gray-400">{address}</p>
               )}
@@ -372,7 +365,7 @@ export default function ListProperty() {
                   required
                   value={propertyName}
                   onChange={(e) => setPropertyName(e.target.value)}
-                  placeholder="e.g. Fort Lugard Apartments"
+                  placeholder="Your Property Name"
                   className={inputClass}
                 />
               </div>
@@ -404,7 +397,7 @@ export default function ListProperty() {
                     required
                     value={customType}
                     onChange={(e) => setCustomType(e.target.value)}
-                    placeholder="e.g. Serviced Office Suite"
+                    placeholder="Property Type"
                     className={inputClass}
                   />
                 </div>
@@ -438,7 +431,6 @@ export default function ListProperty() {
                   required
                   value={location}
                   onChange={(e) => setLocation(e.target.value)}
-                  placeholder="e.g. Gwarinpa, Abuja"
                   className={inputClass}
                 />
               </div>
@@ -477,7 +469,7 @@ export default function ListProperty() {
                     min="0"
                     value={price}
                     onChange={(e) => setPrice(e.target.value)}
-                    placeholder="e.g. 500000"
+                    placeholder="Price"
                     className="w-full bg-transparent px-2 py-3 text-white placeholder:text-gray-600 outline-none"
                   />
                 </div>
@@ -652,7 +644,7 @@ export default function ListProperty() {
                   type="text"
                   value={contactName}
                   onChange={(e) => setContactName(e.target.value)}
-                  placeholder="e.g. Adaeze Okonkwo"
+                  placeholder="Contact Name"
                   className={inputClass}
                 />
               </div>
