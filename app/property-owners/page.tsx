@@ -41,7 +41,7 @@ export default function PropertyOwners() {
               href="/property-owners/sign-up"
               className="rounded-full bg-green-600 px-8 py-4 font-semibold text-white transition hover:bg-green-500"
             >
-              Get Started
+             List your property
             </Link>
 
             <Link
