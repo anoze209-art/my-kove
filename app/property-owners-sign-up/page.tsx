@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { supabase } from "@/lib/supabase";
 
-export default function PropertyOwnerSignUp() {
+export default function PropertyOwnersSignUp() {
   const router = useRouter();
 
   const [fullName, setFullName] = useState("");
@@ -29,7 +29,7 @@ export default function PropertyOwnerSignUp() {
         data: {
           full_name: fullName,
           phone,
-          account_type: "property_owner",
+          account_type: "property_owners",
         },
       },
     });
