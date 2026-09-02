@@ -220,12 +220,12 @@ export default function ListProperty() {
               </div>
               {address && (
                 <p className="mt-5 text-sm text-gray-400">
-                  📍 {address}
+                 {address}
                 </p>
               )}
               {units && (
                 <p className="mt-2 text-sm text-gray-400">
-                  🏠 {units} unit
+                   {units} unit
                   {Number(units) === 1 ? "" : "s"} available
                 </p>
               )}
@@ -266,8 +266,8 @@ export default function ListProperty() {
                   </h3>
                   <div className="mt-3 space-y-2 text-sm text-gray-300">
                     {contactName && <p>{contactName}</p>}
-                    {contactPhone && <p>📞 {contactPhone}</p>}
-                    {contactEmail && <p>✉️ {contactEmail}</p>}
+                    {contactPhone && <p> {contactPhone}</p>}
+                    {contactEmail && <p> {contactEmail}</p>}
                   </div>
                 </div>
               )}
@@ -330,7 +330,7 @@ export default function ListProperty() {
               onClick={() => setPreview(false)}
               className="rounded-full border border-gray-700 px-6 py-3 font-semibold text-gray-300 transition hover:bg-gray-800 hover:text-white"
             >
-              ← Back to Edit
+          Back to Edit
             </button>
 
             <button
@@ -407,7 +407,7 @@ export default function ListProperty() {
                   onChange={(e) =>
                     setPropertyName(e.target.value)
                   }
-                  placeholder="e.g. Fort Lugard Apartments"
+                  placeholder="Property Name"
                   className={inputClass}
                 />
               </div>
@@ -531,7 +531,6 @@ export default function ListProperty() {
                   <span className="flex items-center px-4 text-gray-500">
                     ₦
                   </span>
-
                   <input
                     type="number"
                     required
@@ -540,7 +539,7 @@ export default function ListProperty() {
                     onChange={(e) =>
                       setPrice(e.target.value)
                     }
-                    placeholder="e.g. 850000"
+                    placeholder="Price"
                     className="w-full bg-transparent px-2 py-3 text-white placeholder:text-gray-600 outline-none"
                   />
                 </div>
@@ -597,7 +596,7 @@ export default function ListProperty() {
                   onChange={(e) =>
                     setUnits(e.target.value)
                   }
-                  placeholder="e.g. 12"
+                  placeholder="Available Units/rooms"
                   className={inputClass}
                 />
               </div>
