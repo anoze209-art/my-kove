@@ -910,17 +910,13 @@ export default function ListProperty() {
                   className={inputClass}
                 />
               </div>
-            </div>
-          </div>
           <div className="rounded-2xl border border-green-900 bg-green-950/40 p-5">
             <div className="flex gap-3">
               <div className="text-xl">🛡️</div>
-
               <div>
                 <h4 className="font-semibold text-green-400">
                   Verification matters
                 </h4>
-
                 <p className="mt-1 text-sm leading-6 text-green-200/70">
                   Your property may go through MyKove&apos;s
                   verification process before receiving a
