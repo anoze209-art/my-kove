@@ -10,6 +10,7 @@ const facilityOptions = [
   "Wi-Fi",
   "Water",
   "Electricity",
+  "Inverter",
   "Parking",
   "Security",
   "CCTV",
@@ -557,6 +558,10 @@ export default function ListProperty() {
                   }
                   className={inputClass}
                 >
+                  <option value="per session">
+                    Per session
+                  </option>
+
                   <option value="per year">
                     Per Year
                   </option>
