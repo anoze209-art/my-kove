@@ -780,153 +780,161 @@ export default function ListProperty() {
               </p>
             )}
           </div>
-        <p className="mt-1 text-sm leading-6 text-gray-400">
-  Use contact details and social media accounts that interested people can
-  use to reach the property or its representative.
-</p>
+<div className={cardClass}>
+  <h3 className="text-xl font-bold text-white">
+    Contacts & Socials
+  </h3>
 
-<div className="mt-4 rounded-xl border border-green-900 bg-green-950/40 p-4">
-  <p className="text-sm font-medium text-green-400">
-    Important
+  <p className="mt-1 text-sm leading-6 text-gray-400">
+    Use contact details and social media accounts that interested people can
+    use to reach the property or its representative.
   </p>
-  <p className="mt-1 text-sm leading-6 text-green-200/70">
-    These details will be displayed on your property listing. Use contact
-    information that customers can use to make enquiries about this property.
-  </p>
+
+  <div className="mt-4 rounded-xl border border-green-900 bg-green-950/40 p-4">
+    <p className="text-sm font-medium text-green-400">
+      Important
+    </p>
+    <p className="mt-1 text-sm leading-6 text-green-200/70">
+      These details will be displayed on your property listing. Use contact
+      information that customers can use to make enquiries about this property.
+    </p>
+  </div>
+
+  <div className="mt-6 space-y-5">
+    <div>
+      <label className={labelClass}>
+        Contact Name
+      </label>
+
+      <input
+        type="text"
+        value={contactName}
+        onChange={(e) =>
+          setContactName(e.target.value)
+        }
+        placeholder="Name of contact person"
+        className={inputClass}
+      />
+    </div>
+
+    <div className="grid gap-5 sm:grid-cols-2">
+      <div>
+        <label className={labelClass}>
+          Phone Number
+        </label>
+
+        <input
+          type="tel"
+          required
+          value={contactPhone}
+          onChange={(e) =>
+            setContactPhone(e.target.value)
+          }
+          placeholder="Property Contact Number"
+          className={inputClass}
+        />
+      </div>
+
+      <div>
+        <label className={labelClass}>
+          Email
+        </label>
+
+        <input
+          type="email"
+          value={contactEmail}
+          onChange={(e) =>
+            setContactEmail(e.target.value)
+          }
+          placeholder="Property Email"
+          className={inputClass}
+        />
+      </div>
+    </div>
+
+    <div className="grid gap-5 sm:grid-cols-3">
+      <div>
+        <label className={labelClass}>
+          Instagram
+        </label>
+
+        <input
+          type="text"
+          value={instagram}
+          onChange={(e) =>
+            setInstagram(e.target.value)
+          }
+          placeholder="Property Instagram"
+          className={inputClass}
+        />
+      </div>
+
+      <div>
+        <label className={labelClass}>
+          TikTok
+        </label>
+
+        <input
+          type="text"
+          value={tiktok}
+          onChange={(e) =>
+            setTiktok(e.target.value)
+          }
+          placeholder="Property TikTok"
+          className={inputClass}
+        />
+      </div>
+
+      <div>
+        <label className={labelClass}>
+          WhatsApp
+        </label>
+
+        <input
+          type="text"
+          value={whatsapp}
+          onChange={(e) =>
+            setWhatsapp(e.target.value)
+          }
+          placeholder="Property WhatsApp"
+          className={inputClass}
+        />
+      </div>
+    </div>
+
+    <div>
+      <label className={labelClass}>
+        Other Social / Contact
+      </label>
+
+      <input
+        type="text"
+        value={otherSocial}
+        onChange={(e) =>
+          setOtherSocial(e.target.value)
+        }
+        placeholder="Other property contact"
+        className={inputClass}
+      />
+    </div>
+  </div>
+
+  <div className="mt-6 rounded-2xl border border-green-900 bg-green-950/40 p-5">
+    <div className="flex gap-3">
+      <div>
+        <h4 className="font-semibold text-green-400">
+          Verification matters
+        </h4>
+
+        <p className="mt-1 text-sm leading-6 text-green-200/70">
+          Your property may go through MyKove&apos;s verification process
+          before receiving a verified badge. Verification helps users
+          identify listings that have been reviewed by MyKove.
+        </p>
+      </div>
+    </div>
+  </div>
 </div>
-            <div className="mt-6 space-y-5">
-              <div>
-                <label className={labelClass}>
-                  Contact Name
-                </label>
-
-                <input
-                  type="text"
-                  value={contactName}
-                  onChange={(e) =>
-                    setContactName(e.target.value)
-                  }
-                  placeholder="Contact Name"
-                  className={inputClass}
-                />
-              </div>
-
-              <div className="grid gap-5 sm:grid-cols-2">
-                <div>
-                  <label className={labelClass}>
-                    Phone Number
-                  </label>
-
-                  <input
-                    type="tel"
-                    required
-                    value={contactPhone}
-                    onChange={(e) =>
-                      setContactPhone(e.target.value)
-                    }
-                    placeholder="Contact Number"
-                    className={inputClass}
-                  />
-                </div>
-
-                <div>
-                  <label className={labelClass}>
-                    Email
-                  </label>
-
-                  <input
-                    type="email"
-                    value={contactEmail}
-                    onChange={(e) =>
-                      setContactEmail(e.target.value)
-                    }
-                    placeholder="Contact Email"
-                    className={inputClass}
-                  />
-                </div>
-              </div>
-
-              <div className="grid gap-5 sm:grid-cols-3">
-                <div>
-                  <label className={labelClass}>
-                    Instagram
-                  </label>
-                  <input
-                    type="text"
-                    value={instagram}
-                    onChange={(e) =>
-                      setInstagram(e.target.value)
-                    }
-                    placeholder="Insta Handle"
-                    className={inputClass}
-                  />
-                </div>
-
-                <div>
-                  <label className={labelClass}>
-                    TikTok
-                  </label>
-
-                  <input
-                    type="text"
-                    value={tiktok}
-                    onChange={(e) =>
-                      setTiktok(e.target.value)
-                    }
-                    placeholder="Tiktok Handle"
-                    className={inputClass}
-                  />
-                </div>
-
-                <div>
-                  <label className={labelClass}>
-                    WhatsApp
-                  </label>
-
-                  <input
-                    type="text"
-                    value={whatsapp}
-                    onChange={(e) =>
-                      setWhatsapp(e.target.value)
-                    }
-                    placeholder="Whatsapp Number"
-                    className={inputClass}
-                  />
-                </div>
-              </div>
-
-              <div>
-                <label className={labelClass}>
-                  Other Social / Contact
-                </label>
-
-                <input
-                  type="text"
-                  value={otherSocial}
-                  onChange={(e) =>
-                    setOtherSocial(e.target.value)
-                  }
-                  placeholder="Other Handles"
-                  className={inputClass}
-                />
-              </div>
-          <div className="rounded-2xl border border-green-900 bg-green-950/40 p-5">
-            <div className="flex gap-3">
-              <div className="text-xl">🛡️</div>
-              <div>
-                <h4 className="font-semibold text-green-400">
-                  Verification matters
-                </h4>
-                <p className="mt-1 text-sm leading-6 text-green-200/70">
-                  Your property may go through MyKove&apos;s
-                  verification process before receiving a
-                  verified badge. Verification helps users
-                  identify listings that have been reviewed by
-                  MyKove.
-                </p>
-              </div>
-            </div>
-          </div>
           <div className="flex flex-col-reverse gap-3 sm:flex-row sm:justify-end">
             <button
               type="button"
