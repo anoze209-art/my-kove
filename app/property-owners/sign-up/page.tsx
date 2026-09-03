@@ -41,11 +41,14 @@ export default function PropertyOwnerSignUp() {
       setError(signUpError.message);
       return;
     }
-
-    if (data.user) {
-      router.push("/property-owners/dashboard");
-      router.refresh();
-    }
+if (data.user && data.session) {
+  router.replace("/property-owners/dashboard");
+  router.refresh();
+} else if (data.user) {
+  setError(
+    "Account created. Please check your email to confirm your account before signing in."
+  );
+}
   }
 
   return (
