@@ -1,6 +1,7 @@
 "use client";
 import { useState } from "react";
 import { useRouter } from "next/navigation";
+import { supabase } from "@/lib/supabase";
 type PropertyPhoto = {
   id: string;
   file: File;
@@ -136,16 +137,144 @@ export default function ListProperty() {
     e.preventDefault();
     setPreview(true);
   }
-  async function handleSubmit() {
-    setLoading(true);
+ async function handleSubmit() {
+  setLoading(true);
 
-    setTimeout(() => {
-      setLoading(false);
-      alert(
-        "Your property has been submitted for verification. Database submission will be connected in the next stage."
-      );
-    }, 700);
+  try {
+    const {
+      data: { user },
+      error: userError,
+    } = await supabase.auth.getUser();
+
+    if (userError || !user) {
+      throw new Error("You must be signed in to submit a property.");
+    }
+
+    const { data: existingOrganization, error: organizationError } =
+      await supabase
+        .from("organization")
+        .select("id")
+        .eq("owner_id", user.id)
+        .maybeSingle();
+
+    if (organizationError) {
+      throw organizationError;
+    }
+
+    let organizationId = existingOrganization?.id;
+
+    if (!organizationId) {
+      const { data: profile, error: profileError } = await supabase
+        .from("profiles")
+        .select("full_name")
+        .eq("id", user.id)
+        .maybeSingle();
+
+      if (profileError) {
+        throw profileError;
+      }
+
+      const organizationName =
+        profile?.full_name?.trim()
+          ? `${profile.full_name.trim()}'s Properties`
+          : "MyKove Property Owner";
+
+      const { data: newOrganization, error: createOrganizationError } =
+        await supabase
+          .from("organization")
+          .insert({
+            name: organizationName,
+            owner_id: user.id,
+          })
+          .select("id")
+          .single();
+
+      if (createOrganizationError || !newOrganization) {
+        throw createOrganizationError || new Error("Could not create organization.");
+      }
+
+      organizationId = newOrganization.id;
+    }
+
+    const propertyId = crypto.randomUUID();
+
+    const uploadedPhotoPaths: string[] = [];
+
+    for (const photo of photos) {
+      const fileExtension =
+        photo.file.name.split(".").pop()?.toLowerCase() || "jpg";
+
+      const filePath = `${user.id}/${propertyId}/${photo.id}.${fileExtension}`;
+
+      const { error: uploadError } = await supabase.storage
+        .from("property photo")
+        .upload(filePath, photo.file, {
+          cacheControl: "3600",
+          upsert: false,
+        });
+
+      if (uploadError) {
+        throw uploadError;
+      }
+
+      uploadedPhotoPaths.push(filePath);
+    }
+
+    const coverPhotoIndex = photos.findIndex(
+      (photo) => photo.id === coverPhotoId
+    );
+
+    const coverPhotoPath =
+      coverPhotoIndex >= 0
+        ? uploadedPhotoPaths[coverPhotoIndex]
+        : uploadedPhotoPaths[0] || null;
+
+    const { error: propertyError } = await supabase
+      .from("properties")
+      .insert({
+        id: propertyId,
+        organization_id: organizationId,
+        name: propertyName.trim(),
+        type: resolvedType,
+        description: description.trim(),
+        location: location.trim(),
+        address: address.trim(),
+        price: Number(price),
+        price_period: pricePeriod,
+        units: Number(units),
+        facilities: allFacilities,
+        photos: uploadedPhotoPaths,
+        cover_photo: coverPhotoPath,
+        contact_name: contactName.trim() || null,
+        contact_phone: contactPhone.trim(),
+        contact_email: contactEmail.trim() || null,
+        instagram: instagram.trim() || null,
+        tiktok: tiktok.trim() || null,
+        whatsapp: whatsapp.trim() || null,
+        other_social: otherSocial.trim() || null,
+        status: "pending",
+        verified: false,
+      });
+
+    if (propertyError) {
+      throw propertyError;
+    }
+
+    alert("Your property has been submitted successfully and is now pending verification.");
+
+    router.replace("/property-owners/dashboard");
+  } catch (error) {
+    console.error("Property submission error:", error);
+
+    alert(
+      error instanceof Error
+        ? error.message
+        : "Something went wrong while submitting your property."
+    );
+  } finally {
+    setLoading(false);
   }
+}
   const inputClass =
     "w-full rounded-xl border border-gray-700 bg-gray-950 px-4 py-3 text-white placeholder:text-gray-600 outline-none transition focus:border-green-500 focus:ring-1 focus:ring-green-500";
   const labelClass =
