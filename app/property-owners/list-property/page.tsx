@@ -264,14 +264,15 @@ export default function ListProperty() {
 
     router.replace("/property-owners/dashboard");
   } catch (error) {
-    console.error("Property submission error:", error);
+  console.error("Property submission error:", error);
 
-    alert(
-      error instanceof Error
-        ? error.message
-        : "Something went wrong while submitting your property."
-    );
-  } finally {
+  const message =
+    error && typeof error === "object" && "message" in error
+      ? String(error.message)
+      : "Something went wrong while submitting your property.";
+
+  alert(`Property submission failed:\n\n${message}`);
+} finally {
     setLoading(false);
   }
 }
