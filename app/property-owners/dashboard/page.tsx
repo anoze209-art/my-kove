@@ -1,17 +1,110 @@
 "use client";
-import { useState } from "react";
+
+import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabase";
 
+type Property = {
+  id: string;
+  name: string;
+  type: string;
+  location: string;
+  price: number;
+  price_period: string;
+  units: number;
+  status: string;
+  verified: boolean;
+  cover_photo: string | null;
+};
+
 export default function PropertyOwnersDashboard() {
   const router = useRouter();
+
+  const [properties, setProperties] = useState<Property[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState("");
   const [signingOut, setSigningOut] = useState(false);
+
+  useEffect(() => {
+    loadProperties();
+  }, []);
+
+  async function loadProperties() {
+    setLoading(true);
+    setError("");
+
+    try {
+      const {
+        data: { user },
+        error: userError,
+      } = await supabase.auth.getUser();
+
+      if (userError || !user) {
+        router.replace("/property-owners/sign-in");
+        return;
+      }
+
+      const { data, error: propertiesError } = await supabase
+        .from("properties")
+        .select(`
+          id,
+          name,
+          type,
+          location,
+          price,
+          price_period,
+          units,
+          status,
+          verified,
+          cover_photo,
+          organization:organization_id (
+            owner_id
+          )
+        `);
+
+      if (propertiesError) {
+        throw propertiesError;
+      }
+
+      const ownerProperties = (data || []).filter(
+        (property: any) =>
+          property.organization?.owner_id === user.id
+      );
+
+      setProperties(ownerProperties);
+    } catch (err) {
+      console.error("Dashboard error:", err);
+
+      const message =
+        err &&
+        typeof err === "object" &&
+        "message" in err
+          ? String(err.message)
+          : "Could not load your properties.";
+
+      setError(message);
+    } finally {
+      setLoading(false);
+    }
+  }
+
   async function handleSignOut() {
     setSigningOut(true);
 
     await supabase.auth.signOut();
+
     router.replace("/property-owners/sign-in");
   }
+
+  const totalProperties = properties.length;
+
+  const verifiedProperties = properties.filter(
+    (property) => property.verified === true
+  ).length;
+
+  const pendingProperties = properties.filter(
+    (property) => property.status === "pending"
+  ).length;
 
   return (
     <main className="min-h-screen bg-gray-950 text-gray-100">
@@ -21,6 +114,7 @@ export default function PropertyOwnersDashboard() {
             <h1 className="text-2xl font-bold text-white">
               My<span className="text-green-500">Kove</span>
             </h1>
+
             <p className="text-xs text-gray-400">
               Property Owners
             </p>
@@ -35,6 +129,7 @@ export default function PropertyOwnersDashboard() {
           </button>
         </div>
       </header>
+
       <section className="mx-auto max-w-7xl px-5 py-8 sm:px-6 sm:py-10">
         <div className="mb-8">
           <p className="text-sm font-semibold uppercase tracking-widest text-green-500">
@@ -69,13 +164,16 @@ export default function PropertyOwnersDashboard() {
             </div>
 
             <button
-              onClick={() => router.push("/property-owners/list-property")}
+              onClick={() =>
+                router.push("/property-owners/list-property")
+              }
               className="w-full rounded-full bg-green-600 px-6 py-3 font-semibold text-white transition hover:bg-green-500 md:w-auto"
             >
               List Your Property
             </button>
           </div>
         </div>
+
         <div className="mb-8">
           <h3 className="text-xl font-bold text-white">
             Overview
@@ -86,7 +184,14 @@ export default function PropertyOwnersDashboard() {
           </p>
         </div>
 
+        {error && (
+          <div className="mb-6 rounded-xl border border-red-900 bg-red-950 p-4 text-sm text-red-300">
+            {error}
+          </div>
+        )}
+
         <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-4">
+          {/* MY PROPERTIES */}
           <div className="rounded-2xl border border-gray-800 bg-gray-900 p-6 shadow-lg">
             <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-green-950 text-2xl">
               🏠
@@ -97,13 +202,15 @@ export default function PropertyOwnersDashboard() {
             </p>
 
             <p className="mt-1 text-3xl font-bold text-white">
-              0
+              {loading ? "..." : totalProperties}
             </p>
 
             <p className="mt-2 text-xs text-gray-500">
               Properties listed
             </p>
           </div>
+
+          {/* VERIFIED */}
           <div className="rounded-2xl border border-gray-800 bg-gray-900 p-6 shadow-lg">
             <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-green-950 text-2xl">
               ✓
@@ -114,7 +221,7 @@ export default function PropertyOwnersDashboard() {
             </p>
 
             <p className="mt-1 text-3xl font-bold text-white">
-              0
+              {loading ? "..." : verifiedProperties}
             </p>
 
             <p className="mt-2 text-xs text-gray-500">
@@ -122,6 +229,7 @@ export default function PropertyOwnersDashboard() {
             </p>
           </div>
 
+          {/* PENDING */}
           <div className="rounded-2xl border border-gray-800 bg-gray-900 p-6 shadow-lg">
             <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-gray-800 text-2xl">
               ⏳
@@ -132,13 +240,15 @@ export default function PropertyOwnersDashboard() {
             </p>
 
             <p className="mt-1 text-3xl font-bold text-white">
-              0
+              {loading ? "..." : pendingProperties}
             </p>
 
             <p className="mt-2 text-xs text-gray-500">
               Awaiting verification
             </p>
           </div>
+
+          {/* MANAGERS */}
           <div className="rounded-2xl border border-gray-800 bg-gray-900 p-6 shadow-lg">
             <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-gray-800 text-2xl">
               👥
@@ -158,6 +268,7 @@ export default function PropertyOwnersDashboard() {
           </div>
         </div>
 
+        {/* MANAGE YOUR KOVE */}
         <div className="mt-10">
           <h3 className="text-xl font-bold text-white">
             Manage Your Kove
@@ -168,12 +279,11 @@ export default function PropertyOwnersDashboard() {
           </p>
 
           <div className="mt-5 grid gap-5 md:grid-cols-3">
-
             <button
               onClick={() =>
                 router.push("/property-owners/properties")
               }
-              className="group rounded-2xl border border-gray-800 bg-gray-900 p-6 text-left transition hover:-translate-y-1 hover:border-green-800 hover:bg-gray-900"
+              className="group rounded-2xl border border-gray-800 bg-gray-900 p-6 text-left transition hover:-translate-y-1 hover:border-green-800"
             >
               <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-green-950 text-2xl">
                 🏘️
@@ -182,39 +292,45 @@ export default function PropertyOwnersDashboard() {
               <h4 className="mt-5 text-lg font-bold text-white">
                 My Properties
               </h4>
+
               <p className="mt-2 text-sm leading-6 text-gray-400">
                 View, edit, and manage all your listed properties.
               </p>
 
-              <p className="mt-5 text-sm font-semibold text-green-500 group-hover:text-green-400">
+              <p className="mt-5 text-sm font-semibold text-green-500">
                 Manage properties →
               </p>
             </button>
+
             <button
               onClick={() =>
                 router.push("/property-owners/managers")
               }
-              className="group rounded-2xl border border-gray-800 bg-gray-900 p-6 text-left transition hover:-translate-y-1 hover:border-green-800 hover:bg-gray-900"
+              className="group rounded-2xl border border-gray-800 bg-gray-900 p-6 text-left transition hover:-translate-y-1 hover:border-green-800"
             >
               <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-green-950 text-2xl">
                 👤
               </div>
+
               <h4 className="mt-5 text-lg font-bold text-white">
                 Managers & Staff
               </h4>
+
               <p className="mt-2 text-sm leading-6 text-gray-400">
                 Give trusted staff members access to help manage your
                 properties.
               </p>
-              <p className="mt-5 text-sm font-semibold text-green-500 group-hover:text-green-400">
+
+              <p className="mt-5 text-sm font-semibold text-green-500">
                 Manage staff →
               </p>
             </button>
+
             <button
               onClick={() =>
                 router.push("/property-owners/verification")
               }
-              className="group rounded-2xl border border-gray-800 bg-gray-900 p-6 text-left transition hover:-translate-y-1 hover:border-green-800 hover:bg-gray-900"
+              className="group rounded-2xl border border-gray-800 bg-gray-900 p-6 text-left transition hover:-translate-y-1 hover:border-green-800"
             >
               <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-green-950 text-2xl">
                 🛡️
@@ -229,30 +345,121 @@ export default function PropertyOwnersDashboard() {
                 potential customers.
               </p>
 
-              <p className="mt-5 text-sm font-semibold text-green-500 group-hover:text-green-400">
+              <p className="mt-5 text-sm font-semibold text-green-500">
                 View verification →
               </p>
             </button>
           </div>
         </div>
-        <div className="mt-10 rounded-2xl border border-dashed border-gray-700 bg-gray-900/70 px-6 py-12 text-center">
-          <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-2xl bg-gray-800 text-3xl">
-            🏠
+
+        {/* PROPERTY LIST */}
+        <div className="mt-10">
+          <div className="mb-5">
+            <h3 className="text-xl font-bold text-white">
+              Your Properties
+            </h3>
+
+            <p className="mt-1 text-sm text-gray-400">
+              Properties you have submitted to MyKove.
+            </p>
           </div>
-          <h3 className="mt-5 text-xl font-bold text-white">
-            No properties yet
-          </h3>
-          <p className="mx-auto mt-2 max-w-md text-sm leading-6 text-gray-400">
-            Your properties will appear here once you list them on MyKove.
-          </p>
-          <button
-            onClick={() =>
-              router.push("/property-owners/list-property")
-            }
-            className="mt-6 rounded-full bg-green-600 px-6 py-3 text-sm font-semibold text-white transition hover:bg-green-500"
-          >
-            List Your First Property
-          </button>
+
+          {loading ? (
+            <div className="rounded-2xl border border-gray-800 bg-gray-900 px-6 py-12 text-center">
+              <p className="text-sm text-gray-400">
+                Loading your properties...
+              </p>
+            </div>
+          ) : properties.length === 0 ? (
+            <div className="rounded-2xl border border-dashed border-gray-700 bg-gray-900/70 px-6 py-12 text-center">
+              <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-2xl bg-gray-800 text-3xl">
+                🏠
+              </div>
+
+              <h3 className="mt-5 text-xl font-bold text-white">
+                No properties yet
+              </h3>
+
+              <p className="mx-auto mt-2 max-w-md text-sm leading-6 text-gray-400">
+                Your properties will appear here once you list them on MyKove.
+              </p>
+
+              <button
+                onClick={() =>
+                  router.push("/property-owners/list-property")
+                }
+                className="mt-6 rounded-full bg-green-600 px-6 py-3 text-sm font-semibold text-white transition hover:bg-green-500"
+              >
+                List Your First Property
+              </button>
+            </div>
+          ) : (
+            <div className="grid gap-5 md:grid-cols-2">
+              {properties.map((property) => (
+                <div
+                  key={property.id}
+                  className="overflow-hidden rounded-2xl border border-gray-800 bg-gray-900 shadow-lg"
+                >
+                  <div className="aspect-[16/9] bg-gray-800">
+                    {property.cover_photo ? (
+                      // eslint-disable-next-line @next/next/no-img-element
+                      <img
+                        src={property.cover_photo}
+                        alt={property.name}
+                        className="h-full w-full object-cover"
+                      />
+                    ) : (
+                      <div className="flex h-full items-center justify-center text-gray-600">
+                        No cover photo
+                      </div>
+                    )}
+                  </div>
+
+                  <div className="p-5">
+                    <div className="flex items-start justify-between gap-4">
+                      <div>
+                        <h4 className="text-lg font-bold text-white">
+                          {property.name}
+                        </h4>
+
+                        <p className="mt-1 text-sm text-gray-400">
+                          {property.location} · {property.type}
+                        </p>
+                      </div>
+
+                      <span
+                        className={`shrink-0 rounded-full px-3 py-1 text-xs font-semibold ${
+                          property.verified
+                            ? "bg-green-950 text-green-400"
+                            : property.status === "pending"
+                            ? "bg-yellow-950 text-yellow-400"
+                            : "bg-gray-800 text-gray-400"
+                        }`}
+                      >
+                        {property.verified
+                          ? "✓ Verified"
+                          : property.status === "pending"
+                          ? "Pending"
+                          : property.status}
+                      </span>
+                    </div>
+
+                    <div className="mt-4 flex flex-wrap gap-4 text-sm text-gray-400">
+                      <span>
+                        ₦{Number(property.price).toLocaleString()}{" "}
+                        {property.price_period}
+                      </span>
+
+                      <span>
+                        {property.units}{" "}
+                        {property.units === 1 ? "unit" : "units"}
+                      </span>
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
         </div>
       </section>
     </main>
