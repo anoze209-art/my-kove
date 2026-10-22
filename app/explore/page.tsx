@@ -1,224 +1,335 @@
 "use client";
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { supabase } from "@/lib/supabase";
+
 type Property = {
   id: string;
   name: string;
   type: string;
   description: string | null;
   location: string;
+  address: string | null;
   price: number | null;
+  price_period: string | null;
   status: string | null;
+  verified: boolean | null;
+  photos: string[] | null;
+  cover_photo: string | null;
+  facilities: string[] | null;
   created_at: string;
 };
+
+const PHOTO_BUCKET = "property photo";
+
+const propertyTypes = [
+  "Hostel",
+  "Apartment",
+  "Short Stay",
+  "House",
+  "Duplex",
+  "Hotel",
+  "Other",
+];
+
+function formatPrice(price: number | null) {
+  if (price === null) return "Price unavailable";
+
+  return new Intl.NumberFormat("en-NG", {
+    style: "currency",
+    currency: "NGN",
+    maximumFractionDigits: 0,
+  }).format(price);
+}
+
+function formatPricePeriod(period: string | null) {
+  if (!period || period === "negotiable") return "";
+
+  return ` ${period.replace(/^per\s+/i, "/")}`;
+}
+
+function getPhotoUrl(path: string | null) {
+  if (!path) return null;
+
+  if (/^https?:\/\//i.test(path)) return path;
+
+  const { data } = supabase.storage
+    .from(PHOTO_BUCKET)
+    .getPublicUrl(path);
+
+  return data.publicUrl;
+}
+
+function normalize(value: string | null | undefined) {
+  return (value ?? "").trim().toLowerCase();
+}
 
 export default function ExplorePage() {
   const [properties, setProperties] = useState<Property[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [search, setSearch] = useState("");
+  const [searchInput, setSearchInput] = useState("");
   const [stayType, setStayType] = useState("all");
   const [budget, setBudget] = useState("all");
   const [sort, setSort] = useState("recommended");
-  useEffect(() => {
-    async function loadProperties() {
-      setLoading(true);
-      setError("");
-      const { data, error } = await supabase
-        .from("properties")
-        .select(
-          "id, name, type, description, location, price, status, created_at"
-        )
-        .order("created_at", { ascending: false });
-      if (error) {
-        console.error(error);
-        setError("We couldn't load the properties right now.");
-        setProperties([]);
-      } else {
-        setProperties(data ?? []);
-      }
-      setLoading(false);
+  const [menuOpen, setMenuOpen] = useState(false);
+
+  const loadProperties = useCallback(async () => {
+    setLoading(true);
+    setError("");
+
+    const { data, error: queryError } = await supabase
+      .from("properties")
+      .select(
+        "id, name, type, description, location, address, price, price_period, status, verified, photos, cover_photo, facilities, created_at"
+      )
+      .eq("status", "active")
+      .order("created_at", { ascending: false });
+
+    if (queryError) {
+      console.error("Explore properties error:", queryError);
+      setError("We couldn't load properties right now. Please try again.");
+      setProperties([]);
+    } else {
+      setProperties((data ?? []) as Property[]);
     }
 
-    loadProperties();
+    setLoading(false);
   }, []);
+
+  useEffect(() => {
+    void loadProperties();
+  }, [loadProperties]);
+
   const filteredProperties = useMemo(() => {
     let result = [...properties];
-    const searchValue = search.trim().toLowerCase();
+    const searchValue = normalize(search);
+
     if (searchValue) {
-      result = result.filter(
-        (property) =>
-          property.name.toLowerCase().includes(searchValue) ||
-          property.location.toLowerCase().includes(searchValue) ||
-          property.type.toLowerCase().includes(searchValue)
+      result = result.filter((property) =>
+        [
+          property.name,
+          property.location,
+          property.address,
+          property.type,
+          property.description,
+          ...(property.facilities ?? []),
+        ].some((value) => normalize(value).includes(searchValue))
       );
     }
 
     if (stayType !== "all") {
       result = result.filter(
-        (property) =>
-          property.type.toLowerCase() === stayType.toLowerCase()
+        (property) => normalize(property.type) === normalize(stayType)
       );
     }
+
     if (budget !== "all") {
       result = result.filter((property) => {
-        const price = property.price ?? 0;
-        if (budget === "under-500k") return price < 500000;
-        if (budget === "500k-1m")
-          return price >= 500000 && price <= 1000000;
-        if (budget === "1m-2m")
-          return price > 1000000 && price <= 2000000;
-        if (budget === "2m-plus") return price > 2000000;
-        return true;
+        if (property.price === null) return false;
+
+        const price = property.price;
+
+        switch (budget) {
+          case "under-500k":
+            return price < 500000;
+          case "500k-1m":
+            return price >= 500000 && price <= 1000000;
+          case "1m-2m":
+            return price > 1000000 && price <= 2000000;
+          case "2m-plus":
+            return price > 2000000;
+          default:
+            return true;
+        }
       });
     }
+
     if (sort === "lowest") {
-      result.sort((a, b) => (a.price ?? 0) - (b.price ?? 0));
-    }
-    if (sort === "highest") {
-      result.sort((a, b) => (b.price ?? 0) - (a.price ?? 0));
+      result.sort(
+        (a, b) => (a.price ?? Number.MAX_SAFE_INTEGER) -
+          (b.price ?? Number.MAX_SAFE_INTEGER)
+      );
+    } else if (sort === "highest") {
+      result.sort((a, b) => (b.price ?? -1) - (a.price ?? -1));
     }
     return result;
   }, [properties, search, stayType, budget, sort]);
-  function formatPrice(price: number | null) {
-    if (price === null) return "Price unavailable";
-    return new Intl.NumberFormat("en-NG", {
-      style: "currency",
-      currency: "NGN",
-      maximumFractionDigits: 0,
-    }).format(price);
+
+  function resetFilters() {
+    setSearch("");
+    setSearchInput("");
+    setStayType("all");
+    setBudget("all");
+    setSort("recommended");
   }
-  function getPeriod(type: string) {
-    const normalizedType = type.toLowerCase();
-    if (
-      normalizedType.includes("hotel") ||
-      normalizedType.includes("short")
-    ) {
-      return "/night";
-    }
-    return "/year";
-  }
-  function isAvailable(status: string | null) {
-    if (!status) return true;
-    const normalizedStatus = status.toLowerCase();
-    return (
-      normalizedStatus === "available" ||
-      normalizedStatus === "active"
-    );
-  }
+
   return (
     <main className="min-h-screen bg-gray-50 text-gray-900">
-      <nav className="border-b border-gray-200 bg-white">
-        <div className="mx-auto flex max-w-7xl items-center justify-between px-6 py-5">
-          <Link
-            href="/"
-            className="text-2xl font-bold tracking-tight text-gray-900"
-          >
+      <nav className="sticky top-0 z-30 border-b border-gray-200 bg-white">
+        <div className="mx-auto flex max-w-7xl items-center justify-between px-5 py-4 sm:px-6">
+          <Link href="/" className="text-2xl font-bold tracking-tight">
             My<span className="text-green-600">Kove</span>
           </Link>
+
           <div className="hidden items-center gap-8 md:flex">
             <Link
               href="/explore"
-              className="text-sm font-semibold text-green-600"
+              className="text-sm font-semibold text-green-700"
             >
               Explore
             </Link>
             <Link
               href="/#list"
-              className="text-sm font-medium text-gray-700 hover:text-green-600"
+              className="text-sm font-medium text-gray-600 transition hover:text-green-700"
             >
               List Your Kove
             </Link>
             <Link
               href="/property-owners/sign-in"
-              className="text-sm font-medium text-gray-700 hover:text-green-600"
+              className="text-sm font-medium text-gray-600 transition hover:text-green-700"
             >
-              Sign In
+              Owner Sign In
             </Link>
             <Link
               href="/property-owners/sign-up"
-              className="rounded-full bg-green-600 px-5 py-2.5 text-sm font-semibold text-white hover:bg-green-700"
+              className="rounded-full bg-green-600 px-5 py-2.5 text-sm font-semibold text-white transition hover:bg-green-700"
             >
               Get Started
             </Link>
           </div>
 
-          <button className="rounded-lg border border-gray-300 px-4 py-2 text-sm md:hidden">
-            Menu
+          <button
+            type="button"
+            onClick={() => setMenuOpen((open) => !open)}
+            aria-expanded={menuOpen}
+            aria-label={menuOpen ? "Close navigation menu" : "Open navigation menu"}
+            className="rounded-lg border border-gray-300 px-4 py-2 text-sm font-medium md:hidden"
+          >
+            {menuOpen ? "Close" : "Menu"}
           </button>
         </div>
+
+        {menuOpen && (
+          <div className="space-y-1 border-t border-gray-100 bg-white px-5 py-4 md:hidden">
+            <Link
+              href="/explore"
+              onClick={() => setMenuOpen(false)}
+              className="block rounded-lg px-3 py-3 text-sm font-semibold text-green-700"
+            >
+              Explore
+            </Link>
+            <Link
+              href="/#list"
+              onClick={() => setMenuOpen(false)}
+              className="block rounded-lg px-3 py-3 text-sm text-gray-700"
+            >
+              List Your Kove
+            </Link>
+            <Link
+              href="/property-owners/sign-in"
+              onClick={() => setMenuOpen(false)}
+              className="block rounded-lg px-3 py-3 text-sm text-gray-700"
+            >
+              Owner Sign In
+            </Link>
+            <Link
+              href="/property-owners/sign-up"
+              onClick={() => setMenuOpen(false)}
+              className="block rounded-lg bg-green-600 px-3 py-3 text-sm font-semibold text-white"
+            >
+              Get Started
+            </Link>
+          </div>
+        )}
       </nav>
-      <section className="bg-gray-100 px-6 py-14">
+
+      <section className="bg-white px-5 py-14 sm:px-6 sm:py-20">
         <div className="mx-auto max-w-7xl">
-          <p className="text-sm font-bold tracking-wide text-green-600">
-            EXPLORE KOVES
+          <p className="text-xs font-bold uppercase tracking-[0.2em] text-green-700">
+            Find your place
           </p>
-          <h1 className="mt-2 text-4xl font-bold tracking-tight sm:text-5xl">
-            Find your next stay.
+          <h1 className="mt-3 max-w-3xl text-4xl font-bold tracking-tight sm:text-5xl lg:text-6xl">
+            A better place to find your next stay.
           </h1>
-
-          <p className="mt-4 max-w-2xl text-gray-600">
-            Browse hostels, apartments, and short stays around Abuja.
-            Compare what matters before you make your decision.
+          <p className="mt-5 max-w-2xl text-base leading-7 text-gray-600 sm:text-lg">
+            Explore hostels, apartments, and short stays. Compare prices,
+            facilities, and locations before making your decision.
           </p>
-        </div>
-      </section>
 
-      <section className="border-b border-gray-200 bg-white px-6 py-6">
-        <div className="mx-auto max-w-7xl">
-          <div className="flex flex-col gap-3 lg:flex-row">
-            <input
-              type="text"
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-              placeholder="Search by location or property name..."
-              className="flex-1 rounded-xl border border-gray-300 bg-gray-50 px-5 py-3.5 outline-none focus:border-green-500 focus:ring-2 focus:ring-green-100"
-            />
+          <form
+            onSubmit={(event) => {
+              event.preventDefault();
+              setSearch(searchInput);
+            }}
+            className="mt-8 grid gap-3 rounded-2xl border border-gray-200 bg-gray-50 p-3 shadow-sm sm:grid-cols-2 lg:grid-cols-[minmax(0,1fr)_190px_190px_auto]"
+          >
+            <label className="sm:col-span-2 lg:col-span-1">
+              <span className="sr-only">Search properties</span>
+              <input
+                type="search"
+                value={searchInput}
+                onChange={(event) => setSearchInput(event.target.value)}
+                placeholder="Search name, area, or facility..."
+                className="w-full rounded-xl border border-gray-200 bg-white px-4 py-3.5 text-sm outline-none transition focus:border-green-500 focus:ring-2 focus:ring-green-100"
+              />
+            </label>
 
-            <select
-              value={stayType}
-              onChange={(e) => setStayType(e.target.value)}
-              className="rounded-xl border border-gray-300 bg-gray-50 px-5 py-3.5 outline-none focus:border-green-500"
-            >
-              <option value="all">All stay types</option>
-              <option value="student hostel">Student Hostel</option>
-              <option value="apartment">Apartment</option>
-              <option value="short stay">Short Stay</option>
-              <option value="hotel">Hotel</option>
-            </select>
-            <select
-              value={budget}
-              onChange={(e) => setBudget(e.target.value)}
-              className="rounded-xl border border-gray-300 bg-gray-50 px-5 py-3.5 outline-none focus:border-green-500"
-            >
-              <option value="all">Any budget</option>
-              <option value="under-500k">Under ₦500K</option>
-              <option value="500k-1m">₦500K - ₦1M</option>
-              <option value="1m-2m">₦1M - ₦2M</option>
-              <option value="2m-plus">₦2M+</option>
-            </select>
+            <label>
+              <span className="sr-only">Property type</span>
+              <select
+                value={stayType}
+                onChange={(event) => setStayType(event.target.value)}
+                className="w-full rounded-xl border border-gray-200 bg-white px-4 py-3.5 text-sm outline-none focus:border-green-500"
+              >
+                <option value="all">All property types</option>
+                {propertyTypes.map((type) => (
+                  <option key={type} value={type}>
+                    {type}
+                  </option>
+                ))}
+              </select>
+            </label>
+
+            <label>
+              <span className="sr-only">Budget</span>
+              <select
+                value={budget}
+                onChange={(event) => setBudget(event.target.value)}
+                className="w-full rounded-xl border border-gray-200 bg-white px-4 py-3.5 text-sm outline-none focus:border-green-500"
+              >
+                <option value="all">Any budget</option>
+                <option value="under-500k">Under ₦500K</option>
+                <option value="500k-1m">₦500K–₦1M</option>
+                <option value="1m-2m">₦1M–₦2M</option>
+                <option value="2m-plus">₦2M+</option>
+              </select>
+            </label>
+
             <button
-              onClick={() => {
-                setSearch(search);
-              }}
-              className="rounded-xl bg-green-600 px-7 py-3.5 font-semibold text-white hover:bg-green-700"
+              type="submit"
+              className="rounded-xl bg-green-600 px-7 py-3.5 text-sm font-semibold text-white transition hover:bg-green-700"
             >
               Search
             </button>
-          </div>
+          </form>
         </div>
       </section>
-      <section className="px-6 py-12">
+
+      <section className="px-5 py-10 sm:px-6 sm:py-14">
         <div className="mx-auto max-w-7xl">
-          <div className="mb-8 flex flex-col justify-between gap-4 sm:flex-row sm:items-center">
+          <div className="mb-7 flex flex-col justify-between gap-4 sm:flex-row sm:items-end">
             <div>
-              <h2 className="text-xl font-bold">
+              <p className="text-xs font-bold uppercase tracking-widest text-green-700">
+                Explore MyKove
+              </p>
+              <h2 className="mt-2 text-2xl font-bold tracking-tight sm:text-3xl">
                 Places to stay
               </h2>
-              <p className="mt-1 text-sm text-gray-500">
+              <p className="mt-2 text-sm text-gray-500">
                 {loading
-                  ? "Loading properties..."
+                  ? "Finding available properties..."
                   : `${filteredProperties.length} ${
                       filteredProperties.length === 1
                         ? "property"
@@ -226,130 +337,214 @@ export default function ExplorePage() {
                     } found`}
               </p>
             </div>
-            <select
-              value={sort}
-              onChange={(e) => setSort(e.target.value)}
-              className="rounded-lg border border-gray-300 bg-white px-4 py-2.5 text-sm outline-none focus:border-green-500"
-            >
-              <option value="recommended">Recommended</option>
-              <option value="lowest">Lowest price</option>
-              <option value="highest">Highest price</option>
-            </select>
+
+            <label className="flex items-center gap-3 text-sm text-gray-600">
+              Sort by
+              <select
+                value={sort}
+                onChange={(event) => setSort(event.target.value)}
+                className="rounded-lg border border-gray-200 bg-white px-3 py-2.5 font-medium text-gray-800 outline-none focus:border-green-500"
+              >
+                <option value="recommended">Newest first</option>
+                <option value="lowest">Lowest price</option>
+                <option value="highest">Highest price</option>
+              </select>
+            </label>
           </div>
+
           {loading && (
-            <div className="rounded-2xl border border-gray-200 bg-white px-6 py-16 text-center">
-              <p className="text-sm text-gray-500">
-                Loading available properties...
-              </p>
+            <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
+              {[1, 2, 3].map((item) => (
+                <div
+                  key={item}
+                  className="overflow-hidden rounded-2xl border border-gray-200 bg-white"
+                >
+                  <div className="aspect-[4/3] animate-pulse bg-gray-200" />
+                  <div className="space-y-3 p-5">
+                    <div className="h-3 w-1/3 animate-pulse rounded bg-gray-200" />
+                    <div className="h-5 w-3/4 animate-pulse rounded bg-gray-200" />
+                    <div className="h-4 w-1/2 animate-pulse rounded bg-gray-200" />
+                  </div>
+                </div>
+              ))}
             </div>
           )}
+
           {!loading && error && (
-            <div className="rounded-2xl border border-red-200 bg-white px-6 py-16 text-center">
-              <h3 className="text-lg font-bold text-gray-900">
-                Unable to load properties
-              </h3>
-              <p className="mt-2 text-sm text-gray-500">
+            <div className="rounded-2xl border border-red-200 bg-white px-6 py-14 text-center">
+              <h3 className="text-lg font-bold">Properties could not be loaded</h3>
+              <p className="mx-auto mt-2 max-w-lg text-sm leading-6 text-gray-600">
                 {error}
               </p>
+              <button
+                type="button"
+                onClick={() => void loadProperties()}
+                className="mt-5 rounded-xl bg-green-600 px-5 py-3 text-sm font-semibold text-white hover:bg-green-700"
+              >
+                Try again
+              </button>
             </div>
           )}
+
           {!loading && !error && filteredProperties.length === 0 && (
             <div className="rounded-2xl border border-gray-200 bg-white px-6 py-16 text-center">
-              <h3 className="text-lg font-bold text-gray-900">
-                No properties found
-              </h3>
-              <p className="mt-2 text-sm text-gray-500">
-                Try changing your search or filters.
+              <h3 className="text-xl font-bold">No properties found</h3>
+              <p className="mx-auto mt-2 max-w-md text-sm leading-6 text-gray-500">
+                Try a different search or adjust your filters. New listings
+                will appear here once they have been approved.
               </p>
+              <button
+                type="button"
+                onClick={resetFilters}
+                className="mt-5 rounded-xl border border-gray-300 px-5 py-3 text-sm font-semibold transition hover:bg-gray-50"
+              >
+                Clear filters
+              </button>
             </div>
           )}
+
           {!loading && !error && filteredProperties.length > 0 && (
-            <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
-              {filteredProperties.map((property) => (
-                <article
-                  key={property.id}
-                  className="overflow-hidden rounded-2xl border border-gray-200 bg-white transition hover:-translate-y-1 hover:shadow-lg"
-                >
-                  <div className="relative flex h-56 items-center justify-center bg-gray-200">
-                    <div className="text-4xl font-bold text-gray-400">
-                      MyKove
-                    </div>
-                    <div className="absolute left-4 top-4">
-                      {isAvailable(property.status) ? (
-                        <span className="rounded-full bg-white px-3 py-1.5 text-xs font-semibold text-green-700 shadow-sm">
-                          Available
-                        </span>
+            <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
+              {filteredProperties.map((property) => {
+                const imagePath =
+                  property.cover_photo || property.photos?.[0] || null;
+                const imageUrl = getPhotoUrl(imagePath);
+
+                return (
+                  <article
+                    key={property.id}
+                    className="group overflow-hidden rounded-2xl border border-gray-200 bg-white transition duration-200 hover:-translate-y-1 hover:border-gray-300 hover:shadow-lg"
+                  >
+                    <Link
+                      href={`/explore/${property.id}`}
+                      aria-label={`View ${property.name}`}
+                      className="relative block aspect-[4/3] overflow-hidden bg-gray-100"
+                    >
+                      {imageUrl ? (
+                        // eslint-disable-next-line @next/next/no-img-element
+                        <img
+                          src={imageUrl}
+                          alt={property.name}
+                          loading="lazy"
+                          className="h-full w-full object-cover transition duration-300 group-hover:scale-105"
+                        />
                       ) : (
-                        <span className="rounded-full bg-gray-900 px-3 py-1.5 text-xs font-semibold text-white">
-                          {property.status || "Unavailable"}
-                        </span>
+                        <div className="flex h-full items-center justify-center bg-gray-100 text-sm text-gray-400">
+                          No property photo available
+                        </div>
                       )}
-                    </div>
-                  </div>
 
-                  <div className="p-5">
-                    <div className="flex items-center justify-between gap-3">
-                      <span className="text-xs font-semibold uppercase tracking-wide text-gray-500">
-                        {property.type}
-                      </span>
-                    </div>
+                      <div className="absolute left-3 top-3 flex flex-wrap gap-2">
+                        {property.verified === true && (
+                          <span className="inline-flex items-center gap-1.5 rounded-full bg-green-700 px-3 py-1.5 text-xs font-semibold text-white shadow-sm">
+                            <svg
+                              aria-hidden="true"
+                              viewBox="0 0 20 20"
+                              fill="currentColor"
+                              className="h-4 w-4"
+                            >
+                              <path
+                                fillRule="evenodd"
+                                d="M16.704 5.29a1 1 0 010 1.42l-7.2 7.2a1 1 0 01-1.415 0l-3.6-3.6a1 1 0 011.414-1.42l2.893 2.894 6.493-6.494a1 1 0 011.415 0z"
+                                clipRule="evenodd"
+                              />
+                            </svg>
+                            Verified
+                          </span>
+                        )}
 
-                    <h3 className="mt-3 text-lg font-bold">
-                      {property.name}
-                    </h3>
-                    <p className="mt-1 text-sm text-gray-500">
-                      {property.location}
-                    </p>
-
-                    {property.description && (
-                      <p className="mt-3 line-clamp-2 text-sm leading-6 text-gray-500">
-                        {property.description}
-                      </p>
-                    )}
-                    <div className="mt-5 flex items-end justify-between border-t border-gray-100 pt-4">
-                      <div>
-                        <span className="text-lg font-bold">
-                          {formatPrice(property.price)}
-                        </span>
-
-                        <span className="text-sm text-gray-500">
-                          {property.price !== null &&
-                            getPeriod(property.type)}
-                        </span>
+                        {property.verified !== true && (
+                          <span className="rounded-full bg-white/95 px-3 py-1.5 text-xs font-semibold text-gray-700 shadow-sm">
+                            Not verified
+                          </span>
+                        )}
                       </div>
 
-                      <button
-                        type="button"
-                        className="rounded-lg bg-gray-900 px-4 py-2 text-sm font-semibold text-white transition hover:bg-green-600"
-                      >
-                        View
-                      </button>
+                      <span className="absolute bottom-3 left-3 rounded-full bg-white/95 px-3 py-1.5 text-xs font-semibold text-gray-800 shadow-sm">
+                        {property.type}
+                      </span>
+                    </Link>
+
+                    <div className="p-5">
+                      <div className="flex items-start justify-between gap-3">
+                        <div className="min-w-0">
+                          <h3 className="truncate text-lg font-bold tracking-tight">
+                            {property.name}
+                          </h3>
+                          <p className="mt-1 text-sm text-gray-500">
+                            {property.location}
+                          </p>
+                        </div>
+                      </div>
+
+                      {property.description && (
+                        <p className="mt-3 line-clamp-2 text-sm leading-6 text-gray-600">
+                          {property.description}
+                        </p>
+                      )}
+
+                      {property.facilities && property.facilities.length > 0 && (
+                        <div className="mt-4 flex flex-wrap gap-1.5">
+                          {property.facilities.slice(0, 3).map((facility) => (
+                            <span
+                              key={facility}
+                              className="rounded-md bg-gray-100 px-2.5 py-1 text-xs text-gray-600"
+                            >
+                              {facility}
+                            </span>
+                          ))}
+                          {property.facilities.length > 3 && (
+                            <span className="rounded-md bg-gray-100 px-2.5 py-1 text-xs text-gray-500">
+                              +{property.facilities.length - 3} more
+                            </span>
+                          )}
+                        </div>
+                      )}
+
+                      <div className="mt-5 flex items-end justify-between gap-3 border-t border-gray-100 pt-4">
+                        <div className="min-w-0">
+                          <p className="text-lg font-bold">
+                            {formatPrice(property.price)}
+                          </p>
+                          {property.price !== null && property.price_period && (
+                            <p className="mt-0.5 text-xs text-gray-500">
+                              {formatPricePeriod(property.price_period)}
+                            </p>
+                          )}
+                        </div>
+
+                        <Link
+                          href={`/explore/${property.id}`}
+                          className="shrink-0 rounded-xl bg-gray-900 px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-green-700"
+                        >
+                          View details
+                        </Link>
+                      </div>
                     </div>
-                  </div>
-                </article>
-              ))}
+                  </article>
+                );
+              })}
             </div>
           )}
         </div>
       </section>
-      <footer className="border-t border-gray-200 bg-white px-6 py-10">
-        <div className="mx-auto flex max-w-7xl flex-col gap-4 md:flex-row md:items-center md:justify-between">
+
+      <footer className="border-t border-gray-200 bg-white px-5 py-8 sm:px-6">
+        <div className="mx-auto flex max-w-7xl flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
           <div>
-            <Link
-              href="/"
-              className="text-xl font-bold text-gray-900"
-            >
+            <Link href="/" className="text-xl font-bold">
               My<span className="text-green-600">Kove</span>
             </Link>
             <p className="mt-1 text-sm text-gray-500">
-              One Place For Every Kove.
+              One Place For Every Stay.
             </p>
           </div>
           <p className="text-sm text-gray-500">
-            © 2026 MyKove. All rights reserved.
+            © {new Date().getFullYear()} MyKove. All rights reserved.
           </p>
         </div>
       </footer>
     </main>
   );
 }
+
