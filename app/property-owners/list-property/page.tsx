@@ -96,13 +96,11 @@ const [savingDraft, setSavingDraft] = useState(false);
     if (!files) return;
     const remainingSlots = 10 - photos.length;
     const selectedFiles = Array.from(files).slice(0, remainingSlots);
-    const newPhotos: PropertyPhoto[] = selectedFiles.map((file) => ({
-      id: `${file.name}-${Date.now()}-${Math.random()
-        .toString(36)
-        .slice(2)}`,
-      file,
-      url: URL.createObjectURL(file),
-    }));
+   const newPhotos: PropertyPhoto[] = selectedFiles.map((file) => ({
+  id: crypto.randomUUID(),
+  file,
+  url: URL.createObjectURL(file),
+}));
 
     setPhotos((current) => {
       const updated = [...current, ...newPhotos];
