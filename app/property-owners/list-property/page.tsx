@@ -1266,25 +1266,29 @@ for (const photo of photos) {
     </div>
   </div>
 </div>
-          <div className="flex flex-col-reverse gap-3 sm:flex-row sm:justify-end">
-            <button
-              type="button"
-              onClick={() =>
-                router.push("/property-owners/dashboard")
-              }
-              className="rounded-full border border-gray-700 px-6 py-3 font-semibold text-gray-300 transition hover:bg-gray-800 hover:text-white"
-            >
-              Cancel
-            </button>
-            <button
-              type="submit"
-              className="rounded-full bg-green-600 px-7 py-3 font-semibold text-white transition hover:bg-green-500"
-            >
-              Preview Listing
-            </button>
-          </div>
-        </form>
-      </section>
-    </main>
-  );
-}
+          
+<div className="flex flex-col-reverse gap-3 sm:flex-row sm:justify-end">
+  <button
+    type="button"
+    onClick={() => router.push("/property-owners/dashboard")}
+    className="rounded-full border border-gray-700 px-6 py-3 font-semibold text-gray-300 transition hover:bg-gray-800 hover:text-white"
+  >
+    Cancel
+  </button>
+
+  <button
+    type="button"
+    onClick={handleSaveDraft}
+    disabled={savingDraft || loading}
+    className="rounded-full border border-green-700 px-6 py-3 font-semibold text-green-400 transition hover:bg-green-950 disabled:cursor-not-allowed disabled:opacity-60"
+  >
+    {savingDraft ? "Saving Draft..." : "Save Draft"}
+  </button>
+
+  <button
+    type="submit"
+    className="rounded-full bg-green-600 px-7 py-3 font-semibold text-white transition hover:bg-green-500"
+  >
+    Preview Listing
+  </button>
+</div>
