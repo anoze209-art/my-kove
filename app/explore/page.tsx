@@ -1,4 +1,5 @@
 "use client";
+
 import { useCallback, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { supabase } from "@/lib/supabase";
@@ -44,7 +45,6 @@ function formatPrice(price: number | null) {
 
 function formatPricePeriod(period: string | null) {
   if (!period || period === "negotiable") return "";
-
   return ` ${period.replace(/^per\s+/i, "/")}`;
 }
 
@@ -79,23 +79,29 @@ export default function ExplorePage() {
     setLoading(true);
     setError("");
 
-    const { data, error: queryError } = await supabase
-      .from("properties")
-      .select(
-        "id, name, type, description, location, address, price, price_period, status, verified, photos, cover_photo, facilities, created_at"
-      )
-      .eq("status", "active")
-      .order("created_at", { ascending: false });
+    try {
+      const { data, error: queryError } = await supabase
+        .from("properties")
+        .select(
+          "id, name, type, description, location, address, price, price_period, status, verified, photos, cover_photo, facilities, created_at"
+        )
+        .eq("status", "active")
+        .order("created_at", { ascending: false });
 
-    if (queryError) {
-      console.error("Explore properties error:", queryError);
+      if (queryError) {
+        console.error("Explore properties error:", queryError);
+        setError("We couldn't load properties right now. Please try again.");
+        setProperties([]);
+      } else {
+        setProperties((data ?? []) as Property[]);
+      }
+    } catch (err) {
+      console.error("Explore properties error:", err);
       setError("We couldn't load properties right now. Please try again.");
       setProperties([]);
-    } else {
-      setProperties((data ?? []) as Property[]);
+    } finally {
+      setLoading(false);
     }
-
-    setLoading(false);
   }, []);
 
   useEffect(() => {
@@ -148,12 +154,14 @@ export default function ExplorePage() {
 
     if (sort === "lowest") {
       result.sort(
-        (a, b) => (a.price ?? Number.MAX_SAFE_INTEGER) -
+        (a, b) =>
+          (a.price ?? Number.MAX_SAFE_INTEGER) -
           (b.price ?? Number.MAX_SAFE_INTEGER)
       );
     } else if (sort === "highest") {
       result.sort((a, b) => (b.price ?? -1) - (a.price ?? -1));
     }
+
     return result;
   }, [properties, search, stayType, budget, sort]);
 
@@ -166,37 +174,23 @@ export default function ExplorePage() {
   }
 
   return (
-    <main className="min-h-screen bg-gray-50 text-gray-900">
+    <main className="min-h-screen bg-gray-100 text-gray-900">
       <nav className="sticky top-0 z-30 border-b border-gray-200 bg-white">
         <div className="mx-auto flex max-w-7xl items-center justify-between px-5 py-4 sm:px-6">
-          <Link href="/" className="text-2xl font-bold tracking-tight">
+          <Link
+            href="/"
+            aria-label="MyKove homepage"
+            className="text-2xl font-bold tracking-tight"
+          >
             My<span className="text-green-600">Kove</span>
           </Link>
 
-          <div className="hidden items-center gap-8 md:flex">
+          <div className="hidden items-center md:flex">
             <Link
-              href="/explore"
-              className="text-sm font-semibold text-green-700"
-            >
-              Explore
-            </Link>
-            <Link
-              href="/#list"
-              className="text-sm font-medium text-gray-600 transition hover:text-green-700"
+              href="/property-owners"
+              className="rounded-xl bg-green-600 px-5 py-2.5 text-sm font-semibold text-white transition hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-offset-2"
             >
               List Your Kove
-            </Link>
-            <Link
-              href="/property-owners/sign-in"
-              className="text-sm font-medium text-gray-600 transition hover:text-green-700"
-            >
-              Owner Sign In
-            </Link>
-            <Link
-              href="/property-owners/sign-up"
-              className="rounded-full bg-green-600 px-5 py-2.5 text-sm font-semibold text-white transition hover:bg-green-700"
-            >
-              Get Started
             </Link>
           </div>
 
@@ -204,55 +198,38 @@ export default function ExplorePage() {
             type="button"
             onClick={() => setMenuOpen((open) => !open)}
             aria-expanded={menuOpen}
-            aria-label={menuOpen ? "Close navigation menu" : "Open navigation menu"}
-            className="rounded-lg border border-gray-300 px-4 py-2 text-sm font-medium md:hidden"
+            aria-label={
+              menuOpen ? "Close navigation menu" : "Open navigation menu"
+            }
+            className="rounded-xl border border-gray-300 px-4 py-2 text-sm font-medium text-gray-700 transition hover:bg-gray-100 md:hidden"
           >
             {menuOpen ? "Close" : "Menu"}
           </button>
         </div>
 
         {menuOpen && (
-          <div className="space-y-1 border-t border-gray-100 bg-white px-5 py-4 md:hidden">
+          <div className="border-t border-gray-100 bg-white px-5 py-4 md:hidden">
             <Link
-              href="/explore"
+              href="/property-owners"
               onClick={() => setMenuOpen(false)}
-              className="block rounded-lg px-3 py-3 text-sm font-semibold text-green-700"
-            >
-              Explore
-            </Link>
-            <Link
-              href="/#list"
-              onClick={() => setMenuOpen(false)}
-              className="block rounded-lg px-3 py-3 text-sm text-gray-700"
+              className="block rounded-xl bg-green-600 px-4 py-3 text-center text-sm font-semibold text-white transition hover:bg-green-700"
             >
               List Your Kove
-            </Link>
-            <Link
-              href="/property-owners/sign-in"
-              onClick={() => setMenuOpen(false)}
-              className="block rounded-lg px-3 py-3 text-sm text-gray-700"
-            >
-              Owner Sign In
-            </Link>
-            <Link
-              href="/property-owners/sign-up"
-              onClick={() => setMenuOpen(false)}
-              className="block rounded-lg bg-green-600 px-3 py-3 text-sm font-semibold text-white"
-            >
-              Get Started
             </Link>
           </div>
         )}
       </nav>
 
-      <section className="bg-white px-5 py-14 sm:px-6 sm:py-20">
+      <section className="border-b border-gray-200 bg-gray-100 px-5 py-14 sm:px-6 sm:py-20">
         <div className="mx-auto max-w-7xl">
           <p className="text-xs font-bold uppercase tracking-[0.2em] text-green-700">
             Find your place
           </p>
-          <h1 className="mt-3 max-w-3xl text-4xl font-bold tracking-tight sm:text-5xl lg:text-6xl">
+
+          <h1 className="mt-3 max-w-3xl text-4xl font-bold tracking-tight text-gray-900 sm:text-5xl lg:text-6xl">
             A better place to find your next stay.
           </h1>
+
           <p className="mt-5 max-w-2xl text-base leading-7 text-gray-600 sm:text-lg">
             Explore hostels, apartments, and short stays. Compare prices,
             facilities, and locations before making your decision.
@@ -263,7 +240,7 @@ export default function ExplorePage() {
               event.preventDefault();
               setSearch(searchInput);
             }}
-            className="mt-8 grid gap-3 rounded-2xl border border-gray-200 bg-gray-50 p-3 shadow-sm sm:grid-cols-2 lg:grid-cols-[minmax(0,1fr)_190px_190px_auto]"
+            className="mt-8 grid gap-3 rounded-2xl border border-gray-200 bg-white p-3 shadow-sm sm:grid-cols-2 lg:grid-cols-[minmax(0,1fr)_190px_190px_auto]"
           >
             <label className="sm:col-span-2 lg:col-span-1">
               <span className="sr-only">Search properties</span>
@@ -272,7 +249,7 @@ export default function ExplorePage() {
                 value={searchInput}
                 onChange={(event) => setSearchInput(event.target.value)}
                 placeholder="Search name, area, or facility..."
-                className="w-full rounded-xl border border-gray-200 bg-white px-4 py-3.5 text-sm outline-none transition focus:border-green-500 focus:ring-2 focus:ring-green-100"
+                className="w-full rounded-xl border border-gray-200 bg-white px-4 py-3.5 text-sm text-gray-900 outline-none transition placeholder:text-gray-400 focus:border-green-500 focus:ring-2 focus:ring-green-100"
               />
             </label>
 
@@ -281,7 +258,7 @@ export default function ExplorePage() {
               <select
                 value={stayType}
                 onChange={(event) => setStayType(event.target.value)}
-                className="w-full rounded-xl border border-gray-200 bg-white px-4 py-3.5 text-sm outline-none focus:border-green-500"
+                className="w-full rounded-xl border border-gray-200 bg-white px-4 py-3.5 text-sm text-gray-800 outline-none focus:border-green-500 focus:ring-2 focus:ring-green-100"
               >
                 <option value="all">All property types</option>
                 {propertyTypes.map((type) => (
@@ -297,7 +274,7 @@ export default function ExplorePage() {
               <select
                 value={budget}
                 onChange={(event) => setBudget(event.target.value)}
-                className="w-full rounded-xl border border-gray-200 bg-white px-4 py-3.5 text-sm outline-none focus:border-green-500"
+                className="w-full rounded-xl border border-gray-200 bg-white px-4 py-3.5 text-sm text-gray-800 outline-none focus:border-green-500 focus:ring-2 focus:ring-green-100"
               >
                 <option value="all">Any budget</option>
                 <option value="under-500k">Under ₦500K</option>
@@ -309,7 +286,7 @@ export default function ExplorePage() {
 
             <button
               type="submit"
-              className="rounded-xl bg-green-600 px-7 py-3.5 text-sm font-semibold text-white transition hover:bg-green-700"
+              className="rounded-xl bg-green-600 px-7 py-3.5 text-sm font-semibold text-white transition hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-offset-2"
             >
               Search
             </button>
@@ -317,17 +294,19 @@ export default function ExplorePage() {
         </div>
       </section>
 
-      <section className="px-5 py-10 sm:px-6 sm:py-14">
+      <section className="bg-gray-100 px-5 py-10 sm:px-6 sm:py-14">
         <div className="mx-auto max-w-7xl">
           <div className="mb-7 flex flex-col justify-between gap-4 sm:flex-row sm:items-end">
             <div>
               <p className="text-xs font-bold uppercase tracking-widest text-green-700">
                 Explore MyKove
               </p>
-              <h2 className="mt-2 text-2xl font-bold tracking-tight sm:text-3xl">
+
+              <h2 className="mt-2 text-2xl font-bold tracking-tight text-gray-900 sm:text-3xl">
                 Places to stay
               </h2>
-              <p className="mt-2 text-sm text-gray-500">
+
+              <p className="mt-2 text-sm text-gray-500" aria-live="polite">
                 {loading
                   ? "Finding available properties..."
                   : `${filteredProperties.length} ${
@@ -343,7 +322,7 @@ export default function ExplorePage() {
               <select
                 value={sort}
                 onChange={(event) => setSort(event.target.value)}
-                className="rounded-lg border border-gray-200 bg-white px-3 py-2.5 font-medium text-gray-800 outline-none focus:border-green-500"
+                className="rounded-xl border border-gray-200 bg-white px-3 py-2.5 font-medium text-gray-800 outline-none transition focus:border-green-500 focus:ring-2 focus:ring-green-100"
               >
                 <option value="recommended">Newest first</option>
                 <option value="lowest">Lowest price</option>
@@ -371,15 +350,19 @@ export default function ExplorePage() {
           )}
 
           {!loading && error && (
-            <div className="rounded-2xl border border-red-200 bg-white px-6 py-14 text-center">
-              <h3 className="text-lg font-bold">Properties could not be loaded</h3>
+            <div className="rounded-2xl border border-red-200 bg-white px-6 py-14 text-center shadow-sm">
+              <h3 className="text-lg font-bold text-gray-900">
+                Properties could not be loaded
+              </h3>
+
               <p className="mx-auto mt-2 max-w-lg text-sm leading-6 text-gray-600">
                 {error}
               </p>
+
               <button
                 type="button"
                 onClick={() => void loadProperties()}
-                className="mt-5 rounded-xl bg-green-600 px-5 py-3 text-sm font-semibold text-white hover:bg-green-700"
+                className="mt-5 rounded-xl bg-green-600 px-5 py-3 text-sm font-semibold text-white transition hover:bg-green-700"
               >
                 Try again
               </button>
@@ -387,16 +370,20 @@ export default function ExplorePage() {
           )}
 
           {!loading && !error && filteredProperties.length === 0 && (
-            <div className="rounded-2xl border border-gray-200 bg-white px-6 py-16 text-center">
-              <h3 className="text-xl font-bold">No properties found</h3>
+            <div className="rounded-2xl border border-gray-200 bg-white px-6 py-16 text-center shadow-sm">
+              <h3 className="text-xl font-bold text-gray-900">
+                No properties found
+              </h3>
+
               <p className="mx-auto mt-2 max-w-md text-sm leading-6 text-gray-500">
                 Try a different search or adjust your filters. New listings
                 will appear here once they have been approved.
               </p>
+
               <button
                 type="button"
                 onClick={resetFilters}
-                className="mt-5 rounded-xl border border-gray-300 px-5 py-3 text-sm font-semibold transition hover:bg-gray-50"
+                className="mt-5 rounded-xl border border-gray-300 px-5 py-3 text-sm font-semibold text-gray-700 transition hover:border-green-600 hover:bg-green-50 hover:text-green-700"
               >
                 Clear filters
               </button>
@@ -413,7 +400,7 @@ export default function ExplorePage() {
                 return (
                   <article
                     key={property.id}
-                    className="group overflow-hidden rounded-2xl border border-gray-200 bg-white transition duration-200 hover:-translate-y-1 hover:border-gray-300 hover:shadow-lg"
+                    className="group overflow-hidden rounded-2xl border border-gray-200 bg-white shadow-sm transition duration-200 hover:-translate-y-1 hover:border-green-200 hover:shadow-lg"
                   >
                     <Link
                       href={`/explore/${property.id}`}
@@ -466,16 +453,13 @@ export default function ExplorePage() {
                     </Link>
 
                     <div className="p-5">
-                      <div className="flex items-start justify-between gap-3">
-                        <div className="min-w-0">
-                          <h3 className="truncate text-lg font-bold tracking-tight">
-                            {property.name}
-                          </h3>
-                          <p className="mt-1 text-sm text-gray-500">
-                            {property.location}
-                          </p>
-                        </div>
-                      </div>
+                      <h3 className="truncate text-lg font-bold tracking-tight text-gray-900">
+                        {property.name}
+                      </h3>
+
+                      <p className="mt-1 text-sm text-gray-500">
+                        {property.location}
+                      </p>
 
                       {property.description && (
                         <p className="mt-3 line-clamp-2 text-sm leading-6 text-gray-600">
@@ -483,39 +467,43 @@ export default function ExplorePage() {
                         </p>
                       )}
 
-                      {property.facilities && property.facilities.length > 0 && (
-                        <div className="mt-4 flex flex-wrap gap-1.5">
-                          {property.facilities.slice(0, 3).map((facility) => (
-                            <span
-                              key={facility}
-                              className="rounded-md bg-gray-100 px-2.5 py-1 text-xs text-gray-600"
-                            >
-                              {facility}
-                            </span>
-                          ))}
-                          {property.facilities.length > 3 && (
-                            <span className="rounded-md bg-gray-100 px-2.5 py-1 text-xs text-gray-500">
-                              +{property.facilities.length - 3} more
-                            </span>
-                          )}
-                        </div>
-                      )}
+                      {property.facilities &&
+                        property.facilities.length > 0 && (
+                          <div className="mt-4 flex flex-wrap gap-1.5">
+                            {property.facilities.slice(0, 3).map((facility) => (
+                              <span
+                                key={facility}
+                                className="rounded-md bg-gray-100 px-2.5 py-1 text-xs text-gray-600"
+                              >
+                                {facility}
+                              </span>
+                            ))}
+
+                            {property.facilities.length > 3 && (
+                              <span className="rounded-md bg-gray-100 px-2.5 py-1 text-xs text-gray-500">
+                                +{property.facilities.length - 3} more
+                              </span>
+                            )}
+                          </div>
+                        )}
 
                       <div className="mt-5 flex items-end justify-between gap-3 border-t border-gray-100 pt-4">
                         <div className="min-w-0">
-                          <p className="text-lg font-bold">
+                          <p className="text-lg font-bold text-gray-900">
                             {formatPrice(property.price)}
                           </p>
-                          {property.price !== null && property.price_period && (
-                            <p className="mt-0.5 text-xs text-gray-500">
-                              {formatPricePeriod(property.price_period)}
-                            </p>
-                          )}
+
+                          {property.price !== null &&
+                            property.price_period && (
+                              <p className="mt-0.5 text-xs text-gray-500">
+                                {formatPricePeriod(property.price_period)}
+                              </p>
+                            )}
                         </div>
 
                         <Link
                           href={`/explore/${property.id}`}
-                          className="shrink-0 rounded-xl bg-gray-900 px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-green-700"
+                          className="shrink-0 rounded-xl bg-green-600 px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-offset-2"
                         >
                           View details
                         </Link>
@@ -532,13 +520,15 @@ export default function ExplorePage() {
       <footer className="border-t border-gray-200 bg-white px-5 py-8 sm:px-6">
         <div className="mx-auto flex max-w-7xl flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
           <div>
-            <Link href="/" className="text-xl font-bold">
+            <Link href="/" className="text-xl font-bold tracking-tight">
               My<span className="text-green-600">Kove</span>
             </Link>
+
             <p className="mt-1 text-sm text-gray-500">
               One Place For Every Stay.
             </p>
           </div>
+
           <p className="text-sm text-gray-500">
             © {new Date().getFullYear()} MyKove. All rights reserved.
           </p>
