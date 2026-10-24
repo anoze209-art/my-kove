@@ -75,23 +75,6 @@ function getPhotoUrl(path: string | null) {
 
   return data.publicUrl;
 }
-
-function getProvisionalDaysLeft(property: Property) {
-  if (
-    property.authorization_status !== "not_submitted" ||
-    !property.provisional_expires_at
-  ) {
-    return null;
-  }
-
-  const msLeft =
-    new Date(property.provisional_expires_at).getTime() - Date.now();
-
-  if (msLeft <= 0) return null;
-
-  return Math.max(1, Math.ceil(msLeft / (24 * 60 * 60 * 1000)));
-}
-
 export default function PropertyDetail() {
   const params = useParams();
   const router = useRouter();
