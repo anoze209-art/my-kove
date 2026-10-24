@@ -268,7 +268,7 @@ export default function ListProperty() {
     if (propertyError) {
       if (propertyError.code === "23505") {
         throw new Error(
-          "You already have an active listing awaiting verification. Verify your account or wait for it to expire before adding another."
+          "You already have an active listing awaiting verification. Verify your account"
         );
       }
 
