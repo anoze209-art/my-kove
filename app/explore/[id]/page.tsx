@@ -4,7 +4,6 @@ import { useCallback, useEffect, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import Link from "next/link";
 import { supabase } from "@/lib/supabase";
-
 type Property = {
   id: string;
   name: string;
@@ -21,6 +20,13 @@ type Property = {
   photos: string[] | null;
   cover_photo: string | null;
   facilities: string[] | null;
+  contact_name: string | null;
+  contact_phone: string | null;
+  contact_email: string | null;
+  instagram: string | null;
+  tiktok: string | null;
+  whatsapp: string | null;
+  other_social: string | null;
   created_at: string;
 };
 
