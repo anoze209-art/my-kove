@@ -202,10 +202,15 @@ const [savingDraft, setSavingDraft] = useState(false);
     const propertyId = crypto.randomUUID();
 
     const uploadedPhotoPaths: string[] = [];
+for (const photo of photos) {
+  if (!photo.file) {
+    throw new Error(
+      "A saved draft photo needs to be restored before publishing."
+    );
+  }
 
-    for (const photo of photos) {
-      const fileExtension =
-        photo.file.name.split(".").pop()?.toLowerCase() || "jpg";
+  const fileExtension =
+    photo.file.name.split(".").pop()?.toLowerCase() || "jpg";
 
       const filePath = `${user.id}/${propertyId}/${photo.id}.${fileExtension}`;
 
