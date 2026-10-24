@@ -1,5 +1,5 @@
 "use client";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabase";
 type PropertyPhoto = {
@@ -138,6 +138,156 @@ const [savingDraft, setSavingDraft] = useState(false);
     e.preventDefault();
     setPreview(true);
   }
+  
+async function handleSaveDraft() {
+  setSavingDraft(true);
+
+  const uploadedPaths: string[] = [];
+
+  try {
+    const {
+      data: { user },
+      error: userError,
+    } = await supabase.auth.getUser();
+
+    if (userError || !user) {
+      throw new Error("You must be signed in to save a draft.");
+    }
+
+    const currentDraftId = draftId ?? crypto.randomUUID();
+
+    const savedPhotos: {
+      id: string;
+      storagePath: string;
+    }[] = [];
+
+    for (const photo of photos) {
+      if (photo.storagePath && !photo.file) {
+        savedPhotos.push({
+          id: photo.id,
+          storagePath: photo.storagePath,
+        });
+        continue;
+      }
+
+      if (!photo.file) {
+        throw new Error("A photo is missing its file.");
+      }
+
+      const extension =
+        photo.file.name.split(".").pop()?.toLowerCase() || "jpg";
+
+      const storagePath =
+        `${user.id}/${currentDraftId}/${photo.id}.${extension}`;
+
+      const { error: uploadError } = await supabase.storage
+        .from("property-draft-photos")
+        .upload(storagePath, photo.file, {
+          cacheControl: "3600",
+          upsert: false,
+          contentType: photo.file.type || "image/jpeg",
+        });
+
+      if (uploadError) {
+        throw uploadError;
+      }
+
+      uploadedPaths.push(storagePath);
+
+      savedPhotos.push({
+        id: photo.id,
+        storagePath,
+      });
+    }
+
+    const draftData = {
+      propertyName,
+      propertyType,
+      customType,
+      description,
+      location,
+      address,
+      price,
+      pricePeriod,
+      units,
+      facilities,
+      customFacilities,
+      coverPhotoId,
+      contactName,
+      contactPhone,
+      contactEmail,
+      instagram,
+      tiktok,
+      whatsapp,
+      otherSocial,
+      photos: savedPhotos,
+    };
+
+    const { data: existingDraft, error: lookupError } = await supabase
+      .from("property_drafts")
+      .select("id")
+      .eq("id", currentDraftId)
+      .eq("owner_id", user.id)
+      .maybeSingle();
+
+    if (lookupError) {
+      throw lookupError;
+    }
+
+    const result = existingDraft
+      ? await supabase
+          .from("property_drafts")
+          .update({
+            data: draftData,
+            updated_at: new Date().toISOString(),
+          })
+          .eq("id", currentDraftId)
+          .eq("owner_id", user.id)
+      : await supabase.from("property_drafts").insert({
+          id: currentDraftId,
+          owner_id: user.id,
+          data: draftData,
+          updated_at: new Date().toISOString(),
+        });
+
+    if (result.error) {
+      throw result.error;
+    }
+
+    setDraftId(currentDraftId);
+
+    setPhotos((current) =>
+      current.map((photo) => {
+        const saved = savedPhotos.find((item) => item.id === photo.id);
+
+        return saved
+          ? { ...photo, file: null, storagePath: saved.storagePath }
+          : photo;
+      })
+    );
+
+    alert("Draft saved successfully.");
+  } catch (error) {
+    console.error("Save draft error:", error);
+
+    const message =
+      error && typeof error === "object" && "message" in error
+        ? String(error.message)
+        : "Something went wrong while saving your draft.";
+
+    // Remove files uploaded during this failed save.
+    if (uploadedPaths.length > 0) {
+      await supabase.storage
+        .from("property-draft-photos")
+        .remove(uploadedPaths);
+    }
+
+    alert(`Could not save draft:\n\n${message}`);
+  } finally {
+    setSavingDraft(false);
+  }
+}
+
  async function handleSubmit() {
   setLoading(true);
 
