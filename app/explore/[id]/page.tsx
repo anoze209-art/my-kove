@@ -213,9 +213,7 @@ export default function PropertyDetail() {
             </p>
             <p className="mt-1 text-sm leading-6 text-amber-200/80">
               This owner has not yet completed MyKove&apos;s authorization
-              check. This listing will be taken down in {provisionalDaysLeft}{" "}
-              {provisionalDaysLeft === 1 ? "day" : "days"} unless that is
-              completed. Please take extra care before making any payment.
+              check. Please take extra care before making any payment.
             </p>
           </div>
         )}
