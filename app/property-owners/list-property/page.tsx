@@ -4,8 +4,9 @@ import { useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabase";
 type PropertyPhoto = {
   id: string;
-  file: File;
+  file: File | null;
   url: string;
+  storagePath?: string;
 };
 const facilityOptions = [
   "Wi-Fi",
@@ -47,7 +48,9 @@ export default function ListProperty() {
   const [customFacility, setCustomFacility] = useState("");
   const [customFacilities, setCustomFacilities] = useState<string[]>([]);
   const [photos, setPhotos] = useState<PropertyPhoto[]>([]);
-  const [coverPhotoId, setCoverPhotoId] = useState<string | null>(null);
+const [coverPhotoId, setCoverPhotoId] = useState<string | null>(null);
+const [draftId, setDraftId] = useState<string | null>(null);
+const [savingDraft, setSavingDraft] = useState(false);
   const [contactName, setContactName] = useState("");
   const [contactPhone, setContactPhone] = useState("");
   const [contactEmail, setContactEmail] = useState("");
