@@ -201,32 +201,54 @@ const [savingDraft, setSavingDraft] = useState(false);
 
     const propertyId = crypto.randomUUID();
 
-    const uploadedPhotoPaths: string[] = [];
+
+const uploadedPhotoPaths: string[] = [];
+
 for (const photo of photos) {
-  if (!photo.file) {
+  let fileToUpload: File | Blob;
+  let fileExtension: string;
+
+  if (photo.file) {
+    fileToUpload = photo.file;
+    fileExtension =
+      photo.file.name.split(".").pop()?.toLowerCase() || "jpg";
+  } else if (photo.storagePath) {
+    const { data: savedPhoto, error: downloadError } =
+      await supabase.storage
+        .from("property-draft-photos")
+        .download(photo.storagePath);
+
+    if (downloadError || !savedPhoto) {
+      throw downloadError || new Error(
+        "Could not retrieve a saved draft photo."
+      );
+    }
+
+    fileToUpload = savedPhoto;
+    fileExtension =
+      photo.storagePath.split(".").pop()?.toLowerCase() || "jpg";
+  } else {
     throw new Error(
-      "A saved draft photo needs to be restored before publishing."
+      "A property photo is missing its file or saved storage path."
     );
   }
 
-  const fileExtension =
-    photo.file.name.split(".").pop()?.toLowerCase() || "jpg";
+  const filePath =
+    `${user.id}/${propertyId}/${photo.id}.${fileExtension}`;
 
-      const filePath = `${user.id}/${propertyId}/${photo.id}.${fileExtension}`;
+  const { error: uploadError } = await supabase.storage
+    .from("property photo")
+    .upload(filePath, fileToUpload, {
+      cacheControl: "3600",
+      upsert: false,
+    });
 
-      const { error: uploadError } = await supabase.storage
-        .from("property photo")
-        .upload(filePath, photo.file, {
-          cacheControl: "3600",
-          upsert: false,
-        });
+  if (uploadError) {
+    throw uploadError;
+  }
 
-      if (uploadError) {
-        throw uploadError;
-      }
-
-      uploadedPhotoPaths.push(filePath);
-    }
+  uploadedPhotoPaths.push(filePath);
+}
 
     const coverPhotoIndex = photos.findIndex(
       (photo) => photo.id === coverPhotoId
