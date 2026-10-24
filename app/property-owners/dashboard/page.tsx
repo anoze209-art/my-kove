@@ -14,8 +14,88 @@ type Property = {
   units: number;
   status: string;
   verified: boolean;
+  authorization_status: string | null;
+  provisional_expires_at: string | null;
   cover_photo: string | null;
 };
+
+const PHOTO_BUCKET = "property photo";
+
+function getPhotoUrl(path: string | null) {
+  if (!path) return null;
+
+  if (/^https?:\/\//i.test(path)) return path;
+
+  const { data } = supabase.storage.from(PHOTO_BUCKET).getPublicUrl(path);
+
+  return data.publicUrl;
+}
+
+function getProvisionalDaysLeft(property: Property) {
+  if (
+    property.status !== "active" ||
+    property.authorization_status !== "not_submitted" ||
+    !property.provisional_expires_at
+  ) {
+    return null;
+  }
+
+  const msLeft =
+    new Date(property.provisional_expires_at).getTime() - Date.now();
+
+  if (msLeft <= 0) return null;
+
+  return Math.max(1, Math.ceil(msLeft / (24 * 60 * 60 * 1000)));
+}
+
+function isProvisionalExpired(property: Property) {
+  if (property.status === "expired") return true;
+
+  if (
+    property.status !== "active" ||
+    property.authorization_status !== "not_submitted" ||
+    !property.provisional_expires_at
+  ) {
+    return false;
+  }
+
+  return new Date(property.provisional_expires_at).getTime() <= Date.now();
+}
+
+function getStatusBadge(property: Property) {
+  if (property.verified) {
+    return { label: "✓ Verified", className: "bg-green-950 text-green-400" };
+  }
+
+  if (property.status === "suspended") {
+    return { label: "Suspended", className: "bg-red-950 text-red-400" };
+  }
+
+  if (property.status === "rejected") {
+    return { label: "Rejected", className: "bg-red-950 text-red-400" };
+  }
+
+  if (property.status === "pending_review") {
+    return { label: "Under review", className: "bg-yellow-950 text-yellow-400" };
+  }
+
+  if (isProvisionalExpired(property)) {
+    return { label: "Expired", className: "bg-red-950 text-red-400" };
+  }
+
+  if (getProvisionalDaysLeft(property) !== null) {
+    return {
+      label: "Not Yet Verified",
+      className: "bg-amber-950 text-amber-400",
+    };
+  }
+
+  if (property.status === "active") {
+    return { label: "Live", className: "bg-green-950 text-green-400" };
+  }
+
+  return { label: property.status, className: "bg-gray-800 text-gray-400" };
+}
 
 export default function PropertyOwnersDashboard() {
   const router = useRouter();
@@ -44,34 +124,34 @@ export default function PropertyOwnersDashboard() {
         return;
       }
 
+      const { data: organization, error: organizationError } = await supabase
+        .from("organization")
+        .select("id")
+        .eq("owner_id", user.id)
+        .maybeSingle();
+
+      if (organizationError) {
+        throw organizationError;
+      }
+
+      if (!organization) {
+        setProperties([]);
+        return;
+      }
+
       const { data, error: propertiesError } = await supabase
         .from("properties")
-        .select(`
-          id,
-          name,
-          type,
-          location,
-          price,
-          price_period,
-          units,
-          status,
-          verified,
-          cover_photo,
-          organization:organization_id (
-            owner_id
-          )
-        `);
+        .select(
+          "id, name, type, location, price, price_period, units, status, verified, authorization_status, provisional_expires_at, cover_photo"
+        )
+        .eq("organization_id", organization.id)
+        .order("created_at", { ascending: false });
 
       if (propertiesError) {
         throw propertiesError;
       }
 
-      const ownerProperties = (data || []).filter(
-        (property: any) =>
-          property.organization?.owner_id === user.id
-      );
-
-      setProperties(ownerProperties);
+      setProperties((data || []) as Property[]);
     } catch (err) {
       console.error("Dashboard error:", err);
 
@@ -102,9 +182,23 @@ export default function PropertyOwnersDashboard() {
     (property) => property.verified === true
   ).length;
 
-  const pendingProperties = properties.filter(
-    (property) => property.status === "pending"
+  const awaitingProperties = properties.filter(
+    (property) =>
+      property.status === "pending_review" ||
+      getProvisionalDaysLeft(property) !== null
   ).length;
+
+  const provisionalProperty = properties.find(
+    (property) => getProvisionalDaysLeft(property) !== null
+  );
+
+  const expiredProperty = properties.find((property) =>
+    isProvisionalExpired(property)
+  );
+
+  const provisionalDaysLeft = provisionalProperty
+    ? getProvisionalDaysLeft(provisionalProperty)
+    : null;
 
   return (
     <main className="min-h-screen bg-gray-950 text-gray-100">
@@ -145,6 +239,68 @@ export default function PropertyOwnersDashboard() {
             presence on MyKove.
           </p>
         </div>
+
+        {provisionalProperty && provisionalDaysLeft !== null && (
+          <div className="mb-8 rounded-2xl border border-amber-700 bg-amber-950/40 p-6">
+            <div className="flex flex-col justify-between gap-5 md:flex-row md:items-center">
+              <div>
+                <p className="text-sm font-semibold uppercase tracking-wide text-amber-400">
+                  Action needed
+                </p>
+
+                <h3 className="mt-2 text-xl font-bold text-white">
+                  {provisionalDaysLeft}{" "}
+                  {provisionalDaysLeft === 1 ? "day" : "days"} left to verify
+                  &ldquo;{provisionalProperty.name}&rdquo;
+                </h3>
+
+                <p className="mt-2 max-w-2xl text-sm leading-6 text-amber-200/80">
+                  Your listing is live, but visitors see a Not Yet Verified
+                  label. Provide proof that you own this property or are
+                  authorized to advertise it before the time runs out, or it
+                  will be taken down.
+                </p>
+              </div>
+
+              <button
+                onClick={() => router.push("/property-owners/verification")}
+                className="w-full shrink-0 rounded-full bg-amber-500 px-6 py-3 font-semibold text-gray-950 transition hover:bg-amber-400 md:w-auto"
+              >
+                Verify now
+              </button>
+            </div>
+          </div>
+        )}
+
+        {!provisionalProperty && expiredProperty && (
+          <div className="mb-8 rounded-2xl border border-red-900 bg-red-950/40 p-6">
+            <div className="flex flex-col justify-between gap-5 md:flex-row md:items-center">
+              <div>
+                <p className="text-sm font-semibold uppercase tracking-wide text-red-400">
+                  Listing taken down
+                </p>
+
+                <h3 className="mt-2 text-xl font-bold text-white">
+                  &ldquo;{expiredProperty.name}&rdquo; is no longer visible to
+                  the public
+                </h3>
+
+                <p className="mt-2 max-w-2xl text-sm leading-6 text-red-200/80">
+                  The 5-day period ended before proof of authorization was
+                  provided. Submit the required proof to have your listing
+                  reconsidered.
+                </p>
+              </div>
+
+              <button
+                onClick={() => router.push("/property-owners/verification")}
+                className="w-full shrink-0 rounded-full bg-red-600 px-6 py-3 font-semibold text-white transition hover:bg-red-500 md:w-auto"
+              >
+                Submit proof
+              </button>
+            </div>
+          </div>
+        )}
 
         <div className="mb-8 rounded-2xl border border-gray-800 bg-gray-900 p-6 shadow-xl sm:p-8">
           <div className="flex flex-col justify-between gap-6 md:flex-row md:items-center">
@@ -191,7 +347,6 @@ export default function PropertyOwnersDashboard() {
         )}
 
         <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-4">
-          {/* MY PROPERTIES */}
           <div className="rounded-2xl border border-gray-800 bg-gray-900 p-6 shadow-lg">
             <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-green-950 text-2xl">
               🏠
@@ -210,7 +365,6 @@ export default function PropertyOwnersDashboard() {
             </p>
           </div>
 
-          {/* VERIFIED */}
           <div className="rounded-2xl border border-gray-800 bg-gray-900 p-6 shadow-lg">
             <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-green-950 text-2xl">
               ✓
@@ -229,7 +383,6 @@ export default function PropertyOwnersDashboard() {
             </p>
           </div>
 
-          {/* PENDING */}
           <div className="rounded-2xl border border-gray-800 bg-gray-900 p-6 shadow-lg">
             <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-gray-800 text-2xl">
               ⏳
@@ -240,7 +393,7 @@ export default function PropertyOwnersDashboard() {
             </p>
 
             <p className="mt-1 text-3xl font-bold text-white">
-              {loading ? "..." : pendingProperties}
+              {loading ? "..." : awaitingProperties}
             </p>
 
             <p className="mt-2 text-xs text-gray-500">
@@ -248,7 +401,6 @@ export default function PropertyOwnersDashboard() {
             </p>
           </div>
 
-          {/* MANAGERS */}
           <div className="rounded-2xl border border-gray-800 bg-gray-900 p-6 shadow-lg">
             <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-gray-800 text-2xl">
               👥
@@ -268,7 +420,6 @@ export default function PropertyOwnersDashboard() {
           </div>
         </div>
 
-        {/* MANAGE YOUR KOVE */}
         <div className="mt-10">
           <h3 className="text-xl font-bold text-white">
             Manage Your Kove
@@ -352,7 +503,6 @@ export default function PropertyOwnersDashboard() {
           </div>
         </div>
 
-        {/* PROPERTY LIST */}
         <div className="mt-10">
           <div className="mb-5">
             <h3 className="text-xl font-bold text-white">
@@ -395,69 +545,64 @@ export default function PropertyOwnersDashboard() {
             </div>
           ) : (
             <div className="grid gap-5 md:grid-cols-2">
-              {properties.map((property) => (
-                <div
-                  key={property.id}
-                  className="overflow-hidden rounded-2xl border border-gray-800 bg-gray-900 shadow-lg"
-                >
-                  <div className="aspect-[16/9] bg-gray-800">
-                    {property.cover_photo ? (
-                      // eslint-disable-next-line @next/next/no-img-element
-                      <img
-                        src={property.cover_photo}
-                        alt={property.name}
-                        className="h-full w-full object-cover"
-                      />
-                    ) : (
-                      <div className="flex h-full items-center justify-center text-gray-600">
-                        No cover photo
-                      </div>
-                    )}
-                  </div>
+              {properties.map((property) => {
+                const badge = getStatusBadge(property);
+                const coverUrl = getPhotoUrl(property.cover_photo);
 
-                  <div className="p-5">
-                    <div className="flex items-start justify-between gap-4">
-                      <div>
-                        <h4 className="text-lg font-bold text-white">
-                          {property.name}
-                        </h4>
-
-                        <p className="mt-1 text-sm text-gray-400">
-                          {property.location} · {property.type}
-                        </p>
-                      </div>
-
-                      <span
-                        className={`shrink-0 rounded-full px-3 py-1 text-xs font-semibold ${
-                          property.verified
-                            ? "bg-green-950 text-green-400"
-                            : property.status === "pending"
-                            ? "bg-yellow-950 text-yellow-400"
-                            : "bg-gray-800 text-gray-400"
-                        }`}
-                      >
-                        {property.verified
-                          ? "✓ Verified"
-                          : property.status === "pending"
-                          ? "Pending"
-                          : property.status}
-                      </span>
+                return (
+                  <div
+                    key={property.id}
+                    className="overflow-hidden rounded-2xl border border-gray-800 bg-gray-900 shadow-lg"
+                  >
+                    <div className="aspect-[16/9] bg-gray-800">
+                      {coverUrl ? (
+                        // eslint-disable-next-line @next/next/no-img-element
+                        <img
+                          src={coverUrl}
+                          alt={property.name}
+                          className="h-full w-full object-cover"
+                        />
+                      ) : (
+                        <div className="flex h-full items-center justify-center text-gray-600">
+                          No cover photo
+                        </div>
+                      )}
                     </div>
 
-                    <div className="mt-4 flex flex-wrap gap-4 text-sm text-gray-400">
-                      <span>
-                        ₦{Number(property.price).toLocaleString()}{" "}
-                        {property.price_period}
-                      </span>
+                    <div className="p-5">
+                      <div className="flex items-start justify-between gap-4">
+                        <div>
+                          <h4 className="text-lg font-bold text-white">
+                            {property.name}
+                          </h4>
 
-                      <span>
-                        {property.units}{" "}
-                        {property.units === 1 ? "unit" : "units"}
-                      </span>
+                          <p className="mt-1 text-sm text-gray-400">
+                            {property.location} · {property.type}
+                          </p>
+                        </div>
+
+                        <span
+                          className={`shrink-0 rounded-full px-3 py-1 text-xs font-semibold ${badge.className}`}
+                        >
+                          {badge.label}
+                        </span>
+                      </div>
+
+                      <div className="mt-4 flex flex-wrap gap-4 text-sm text-gray-400">
+                        <span>
+                          ₦{Number(property.price).toLocaleString()}{" "}
+                          {property.price_period}
+                        </span>
+
+                        <span>
+                          {property.units}{" "}
+                          {property.units === 1 ? "unit" : "units"}
+                        </span>
+                      </div>
                     </div>
                   </div>
-                </div>
-              ))}
+                );
+              })}
             </div>
           )}
         </div>
