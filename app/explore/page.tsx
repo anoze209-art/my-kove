@@ -460,10 +460,9 @@ export default function ExplorePage() {
       Not verified
     </span>
   )}
-                        )}
-                      </div>
-
-                      <span className="absolute bottom-3 left-3 rounded-full bg-gray-950/90 px-3 py-1.5 text-xs font-semibold text-white shadow-sm">
+              
+                </div>
+                    <span className="absolute bottom-3 left-3 rounded-full bg-gray-950/90 px-3 py-1.5 text-xs font-semibold text-white shadow-sm">
                         {property.type}
                       </span>
                     </Link>
