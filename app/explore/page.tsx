@@ -15,12 +15,28 @@ type Property = {
   price_period: string | null;
   status: string | null;
   verified: boolean | null;
+  authorization_status: string | null;
+  provisional_expires_at: string | null;
   photos: string[] | null;
   cover_photo: string | null;
   facilities: string[] | null;
   created_at: string;
 };
+function getProvisionalDaysLeft(property: Property) {
+  if (
+    property.authorization_status !== "not_submitted" ||
+    !property.provisional_expires_at
+  ) {
+    return null;
+  }
 
+  const msLeft =
+    new Date(property.provisional_expires_at).getTime() - Date.now();
+
+  if (msLeft <= 0) return null;
+
+  return Math.max(1, Math.ceil(msLeft / (24 * 60 * 60 * 1000)));
+}
 const PHOTO_BUCKET = "property photo";
 
 const propertyTypes = [
