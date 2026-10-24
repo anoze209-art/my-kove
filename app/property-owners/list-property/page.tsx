@@ -294,7 +294,8 @@ export default function ListProperty() {
 } finally {
     setLoading(false);
   }
-}=
+}
+  const inputClass =
     "w-full rounded-xl border border-gray-700 bg-gray-950 px-4 py-3 text-white placeholder:text-gray-600 outline-none transition focus:border-green-500 focus:ring-1 focus:ring-green-500";
   const labelClass =
     "mb-2 block text-sm font-medium text-gray-300";
