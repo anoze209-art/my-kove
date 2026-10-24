@@ -1292,3 +1292,8 @@ for (const photo of photos) {
     Preview Listing
   </button>
 </div>
+                  </form>
+      </section>
+    </main>
+  );
+}
