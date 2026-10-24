@@ -21,16 +21,25 @@ type Property = {
   photos: string[] | null;
   cover_photo: string | null;
   facilities: string[] | null;
-  contact_name: string | null;
-  contact_phone: string | null;
-  contact_email: string | null;
-  instagram: string | null;
-  tiktok: string | null;
-  whatsapp: string | null;
-  other_social: string | null;
   created_at: string;
 };
 
+function getProvisionalDaysLeft(property: Property) {
+  if (
+    property.authorization_status !== "not_submitted" ||
+    !property.provisional_expires_at
+  ) {
+    return null;
+  }
+
+  const msLeft =
+    new Date(property.provisional_expires_at).getTime() - Date.now();
+
+  if (msLeft <= 0) return null;
+
+  return Math.max(1, Math.ceil(msLeft / (24 * 60 * 60 * 1000)));
+}
+;
 const PHOTO_BUCKET = "property photo";
 
 const reportReasons = [
