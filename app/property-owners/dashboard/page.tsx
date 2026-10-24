@@ -385,7 +385,7 @@ export default function PropertyOwnersDashboard() {
 
           <div className="rounded-2xl border border-gray-800 bg-gray-900 p-6 shadow-lg">
             <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-gray-800 text-2xl">
-              ⏳
+            
             </div>
 
             <p className="mt-5 text-sm text-gray-400">
