@@ -150,6 +150,18 @@ export default function ListProperty() {
       throw new Error("You must be signed in to submit a property.");
     }
 
+    const { data: profile, error: profileError } = await supabase
+      .from("profiles")
+      .select("full_name, owner_verified")
+      .eq("id", user.id)
+      .maybeSingle();
+
+    if (profileError) {
+      throw profileError;
+    }
+
+    const ownerVerified = profile?.owner_verified === true;
+
     const { data: existingOrganization, error: organizationError } =
       await supabase
         .from("organization")
@@ -164,16 +176,6 @@ export default function ListProperty() {
     let organizationId = existingOrganization?.id;
 
     if (!organizationId) {
-      const { data: profile, error: profileError } = await supabase
-        .from("profiles")
-        .select("full_name")
-        .eq("id", user.id)
-        .maybeSingle();
-
-      if (profileError) {
-        throw profileError;
-      }
-
       const organizationName =
         profile?.full_name?.trim()
           ? `${profile.full_name.trim()}'s Properties`
@@ -229,6 +231,10 @@ export default function ListProperty() {
         ? uploadedPhotoPaths[coverPhotoIndex]
         : uploadedPhotoPaths[0] || null;
 
+    const provisionalExpiresAt = ownerVerified
+      ? null
+      : new Date(Date.now() + 5 * 24 * 60 * 60 * 1000).toISOString();
+
     const { error: propertyError } = await supabase
       .from("properties")
       .insert({
@@ -252,15 +258,28 @@ export default function ListProperty() {
         tiktok: tiktok.trim() || null,
         whatsapp: whatsapp.trim() || null,
         other_social: otherSocial.trim() || null,
-        status: "pending",
+        status: "active",
         verified: false,
+        authorization_status: ownerVerified ? "approved" : "not_submitted",
+        provisional_expires_at: provisionalExpiresAt,
+        payment_status: ownerVerified ? "required" : "not_required",
       });
 
     if (propertyError) {
+      if (propertyError.code === "23505") {
+        throw new Error(
+          "You already have an active listing awaiting verification. Verify your account or wait for it to expire before adding another."
+        );
+      }
+
       throw propertyError;
     }
 
-    alert("Your property has been submitted successfully and is now pending verification.");
+    alert(
+      ownerVerified
+        ? "Your property has been published."
+        : "Your property is live for 5 days while marked \"Not Yet Verified.\" Verify your account before then to keep it listed."
+    );
 
     router.replace("/property-owners/dashboard");
   } catch (error) {
@@ -275,8 +294,7 @@ export default function ListProperty() {
 } finally {
     setLoading(false);
   }
-}
-  const inputClass =
+}=
     "w-full rounded-xl border border-gray-700 bg-gray-950 px-4 py-3 text-white placeholder:text-gray-600 outline-none transition focus:border-green-500 focus:ring-1 focus:ring-green-500";
   const labelClass =
     "mb-2 block text-sm font-medium text-gray-300";
