@@ -83,7 +83,7 @@ export default function ExplorePage() {
       const { data, error: queryError } = await supabase
         .from("properties")
         .select(
-          "id, name, type, description, location, address, price, price_period, status, verified, photos, cover_photo, facilities, created_at"
+         "id, name, type, description, location, address, price, price_period, status, verified, authorization_status, provisional_expires_at, photos, cover_photo, facilities, created_at"
         )
         .eq("status", "active")
         .order("created_at", { ascending: false });
@@ -443,10 +443,23 @@ export default function ExplorePage() {
                           </span>
                         )}
 
-                        {property.verified !== true && (
-                          <span className="rounded-full bg-gray-950/90 px-3 py-1.5 text-xs font-semibold text-gray-200 shadow-sm">
-                            Not verified
-                          </span>
+                      {property.verified !== true &&
+  getProvisionalDaysLeft(property) !== null && (
+    <span className="rounded-full bg-amber-500/90 px-3 py-1.5 text-xs font-semibold text-gray-950 shadow-sm">
+      Not Yet Verified ·{" "}
+      {getProvisionalDaysLeft(property)}
+      {getProvisionalDaysLeft(property) === 1
+        ? " day left"
+        : " days left"}
+    </span>
+  )}
+
+{property.verified !== true &&
+  getProvisionalDaysLeft(property) === null && (
+    <span className="rounded-full bg-gray-950/90 px-3 py-1.5 text-xs font-semibold text-gray-200 shadow-sm">
+      Not verified
+    </span>
+  )}
                         )}
                       </div>
 
