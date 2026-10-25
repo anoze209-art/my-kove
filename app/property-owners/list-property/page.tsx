@@ -60,6 +60,85 @@ const [savingDraft, setSavingDraft] = useState(false);
   const [otherSocial, setOtherSocial] = useState("");
   const [preview, setPreview] = useState(false);
   const [loading, setLoading] = useState(false);
+    useEffect(() => {
+    const requestedDraftId = new URLSearchParams(window.location.search).get(
+      "draft"
+    );
+
+    if (!requestedDraftId) return;
+
+    async function loadDraft(id: string) {
+      try {
+        const {
+          data: { user },
+        } = await supabase.auth.getUser();
+
+        if (!user) return;
+
+        const { data: draft, error: draftError } = await supabase
+          .from("property_drafts")
+          .select("id, data")
+          .eq("id", id)
+          .eq("owner_id", user.id)
+          .maybeSingle();
+
+        if (draftError || !draft) {
+          alert("That draft could not be found.");
+          return;
+        }
+
+        const saved = draft.data ?? {};
+
+        setPropertyName(saved.propertyName ?? "");
+        setPropertyType(saved.propertyType ?? "");
+        setCustomType(saved.customType ?? "");
+        setDescription(saved.description ?? "");
+        setLocation(saved.location ?? "");
+        setAddress(saved.address ?? "");
+        setPrice(saved.price ?? "");
+        setPricePeriod(saved.pricePeriod ?? "per year");
+        setUnits(saved.units ?? "");
+        setFacilities(saved.facilities ?? []);
+        setCustomFacilities(saved.customFacilities ?? []);
+        setContactName(saved.contactName ?? "");
+        setContactPhone(saved.contactPhone ?? "");
+        setContactEmail(saved.contactEmail ?? "");
+        setInstagram(saved.instagram ?? "");
+        setTiktok(saved.tiktok ?? "");
+        setWhatsapp(saved.whatsapp ?? "");
+        setOtherSocial(saved.otherSocial ?? "");
+
+        const savedPhotos: { id: string; storagePath: string }[] =
+          saved.photos ?? [];
+
+        const restoredPhotos: PropertyPhoto[] = [];
+
+        for (const photo of savedPhotos) {
+          const { data: signed } = await supabase.storage
+            .from("property-draft-photos")
+            .createSignedUrl(photo.storagePath, 3600);
+
+          if (signed?.signedUrl) {
+            restoredPhotos.push({
+              id: photo.id,
+              file: null,
+              url: signed.signedUrl,
+              storagePath: photo.storagePath,
+            });
+          }
+        }
+
+        setPhotos(restoredPhotos);
+        setCoverPhotoId(saved.coverPhotoId ?? restoredPhotos[0]?.id ?? null);
+        setDraftId(draft.id);
+      } catch (err) {
+        console.error("Load draft error:", err);
+        alert("Something went wrong while opening your draft.");
+      }
+    }
+
+    loadDraft(requestedDraftId);
+  }, []);
   function toggleFacility(facility: string) {
     setFacilities((current) =>
       current.includes(facility)
@@ -446,13 +525,26 @@ for (const photo of photos) {
     if (propertyError) {
       if (propertyError.code === "23505") {
         throw new Error(
-          "You already have an active listing awaiting verification. Verify your account"
+          "You can only have one listing until you are verified. Verify your account to list more properties."
         );
       }
 
       throw propertyError;
     }
 
+    if (draftId) {
+      const draftPhotoPaths = photos
+        .map((photo) => photo.storagePath)
+        .filter((path): path is string => Boolean(path));
+
+      if (draftPhotoPaths.length > 0) {
+        await supabase.storage
+          .from("property-draft-photos")
+          .remove(draftPhotoPaths);
+      }
+
+      await supabase.from("property_drafts").delete().eq("id", draftId);
+    }
     alert(
       ownerVerified
         ? "Your property has been published."
@@ -1035,7 +1127,6 @@ for (const photo of photos) {
                 className="flex cursor-pointer flex-col items-center justify-center rounded-xl border border-dashed border-gray-700 bg-gray-950 px-4 py-8 text-center transition hover:border-green-600 hover:bg-gray-900"
               >
                 <span className="text-3xl">
-                  📸
                 </span>
 
                 <span className="mt-2 text-sm font-medium text-gray-300">
