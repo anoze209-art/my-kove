@@ -217,8 +217,9 @@ const [savingDraft, setSavingDraft] = useState(false);
     e.preventDefault();
     setPreview(true);
   }
-  async function handleSaveDraft(options?: { silent?: boolean }): Promise<boolean> {
-  const silent = options?.silent === true;sync function handleSaveDraft() {
+async function handleSaveDraft(options?: { silent?: boolean }): Promise<boolean> {
+  const silent = options?.silent === true;
+
   setSavingDraft(true);
 
   const uploadedPaths: string[] = [];
