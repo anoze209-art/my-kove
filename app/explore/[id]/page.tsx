@@ -185,7 +185,7 @@ export default function PropertyDetail() {
 
   const photoUrls = (property.photos ?? []).map((path) => getPhotoUrl(path));
   const activeUrl = getPhotoUrl(activePhoto);
-  const provisionalDaysLeft = getProvisionalDaysLeft(property);
+const ownerPending = property.authorization_status === "not_submitted";nst provisionalDaysLeft = getProvisionalDaysLeft(property);
 
   return (
     <main className="min-h-screen bg-gray-950 text-gray-100">
@@ -206,14 +206,27 @@ export default function PropertyDetail() {
       </nav>
 
       <section className="mx-auto max-w-5xl px-6 py-8 sm:py-12">
-        {provisionalDaysLeft !== null && (
-          <div className="mb-6 rounded-2xl border border-amber-700 bg-amber-950/40 p-4">
-            <p className="text-sm font-semibold text-amber-400">
-              Not Yet Verified
+              {property.verified !== true && (
+          <div
+            className={`mb-6 rounded-xl border px-4 py-3 ${
+              ownerPending
+                ? "border-amber-800 bg-amber-950/30"
+                : "border-gray-800 bg-gray-900"
+            }`}
+          >
+            <p
+              className={`text-sm font-semibold ${
+                ownerPending ? "text-amber-400" : "text-gray-200"
+              }`}
+            >
+              {ownerPending
+                ? "Owner not yet verified"
+                : "Property not yet verified"}
             </p>
-            <p className="mt-1 text-sm leading-6 text-amber-200/80">
-              This owner has not yet completed MyKove&apos;s authorization
-              check. Please take extra care before making any payment.
+            <p className="mt-0.5 text-sm text-gray-400">
+              {ownerPending
+                ? "Take care before making any payment, and report anything suspicious."
+                : "MyKove has not verified this property yet."}
             </p>
           </div>
         )}
