@@ -217,8 +217,8 @@ const [savingDraft, setSavingDraft] = useState(false);
     e.preventDefault();
     setPreview(true);
   }
-  
-async function handleSaveDraft() {
+  async function handleSaveDraft(options?: { silent?: boolean }): Promise<boolean> {
+  const silent = options?.silent === true;sync function handleSaveDraft() {
   setSavingDraft(true);
 
   const uploadedPaths: string[] = [];
@@ -345,7 +345,11 @@ async function handleSaveDraft() {
       })
     );
 
-    alert("Draft saved successfully.");
+   if (!silent) {
+      alert("Draft saved successfully.");
+    }
+
+    return true;
   } catch (error) {
     console.error("Save draft error:", error);
 
@@ -362,6 +366,8 @@ async function handleSaveDraft() {
     }
 
     alert(`Could not save draft:\n\n${message}`);
+    
+    return false;
   } finally {
     setSavingDraft(false);
   }
@@ -427,7 +433,35 @@ async function handleSaveDraft() {
 
       organizationId = newOrganization.id;
     }
+    if (!ownerVerified) {
+      const { data: existingListing, error: existingListingError } =
+        await supabase
+          .from("properties")
+          .select("id")
+          .eq("organization_id", organizationId)
+          .eq("authorization_status", "not_submitted")
+          .limit(1);
 
+      if (existingListingError) {
+        throw existingListingError;
+      }
+
+      if (existingListing && existingListing.length > 0) {
+        const saved = await handleSaveDraft({ silent: true });
+
+        alert(
+          saved
+            ? "This property couldn't be listed because your account isn't verified. It has been saved to your drafts. Verify your account, then post it from Your Drafts."
+            : "This property couldn't be listed because your account isn't verified."
+        );
+
+        if (saved) {
+          router.replace("/property-owners/dashboard");
+        }
+
+        return;
+      }
+    }
     const propertyId = crypto.randomUUID();
 
 
@@ -1369,7 +1403,7 @@ for (const photo of photos) {
 
   <button
     type="button"
-    onClick={handleSaveDraft}
+    onClick={() => handleSaveDraft()}
     disabled={savingDraft || loading}
     className="rounded-full border border-green-700 px-6 py-3 font-semibold text-green-400 transition hover:bg-green-950 disabled:cursor-not-allowed disabled:opacity-60"
   >
