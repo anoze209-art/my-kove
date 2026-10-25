@@ -10,12 +10,13 @@ type VerificationRequest = {
   status: string;
   rejection_reason: string | null;
   created_at: string;
-  property_id: string | null;
+  property_id: string;
 };
 
 type OwnerProperty = {
   id: string;
   name: string;
+  authorization_status: string | null;
 };
 
 const DOCUMENT_BUCKET = "verification-documents";
@@ -82,12 +83,11 @@ export default function OwnerVerification() {
   const router = useRouter();
 
   const [loading, setLoading] = useState(true);
-  const [ownerVerified, setOwnerVerified] = useState(false);
   const [requests, setRequests] = useState<VerificationRequest[]>([]);
   const [properties, setProperties] = useState<OwnerProperty[]>([]);
 
-  const [evidenceType, setEvidenceType] = useState("ownership_document");
   const [propertyId, setPropertyId] = useState("");
+  const [evidenceType, setEvidenceType] = useState("ownership_document");
   const [notes, setNotes] = useState("");
   const [files, setFiles] = useState<File[]>([]);
 
@@ -112,18 +112,6 @@ export default function OwnerVerification() {
         return;
       }
 
-      const { data: profile, error: profileError } = await supabase
-        .from("profiles")
-        .select("owner_verified")
-        .eq("id", user.id)
-        .maybeSingle();
-
-      if (profileError) {
-        throw profileError;
-      }
-
-      setOwnerVerified(profile?.owner_verified === true);
-
       const { data: requestRows, error: requestsError } = await supabase
         .from("verification_requests")
         .select("id, evidence_type, status, rejection_reason, created_at, property_id")
@@ -134,7 +122,8 @@ export default function OwnerVerification() {
         throw requestsError;
       }
 
-      setRequests((requestRows ?? []) as VerificationRequest[]);
+      const loadedRequests = (requestRows ?? []) as VerificationRequest[];
+      setRequests(loadedRequests);
 
       const { data: organization, error: organizationError } = await supabase
         .from("organization")
@@ -146,10 +135,12 @@ export default function OwnerVerification() {
         throw organizationError;
       }
 
+      let loadedProperties: OwnerProperty[] = [];
+
       if (organization) {
         const { data: propertyRows, error: propertiesError } = await supabase
           .from("properties")
-          .select("id, name")
+          .select("id, name, authorization_status")
           .eq("organization_id", organization.id)
           .order("created_at", { ascending: false });
 
@@ -157,8 +148,28 @@ export default function OwnerVerification() {
           throw propertiesError;
         }
 
-        setProperties((propertyRows ?? []) as OwnerProperty[]);
+        loadedProperties = (propertyRows ?? []) as OwnerProperty[];
       }
+
+      setProperties(loadedProperties);
+
+      const pendingIds = new Set(
+        loadedRequests
+          .filter((item) => item.status === "pending")
+          .map((item) => item.property_id)
+      );
+
+      const selectable = loadedProperties.filter(
+        (item) =>
+          item.authorization_status === "not_submitted" &&
+          !pendingIds.has(item.id)
+      );
+
+      setPropertyId((current) =>
+        current && selectable.some((item) => item.id === current)
+          ? current
+          : selectable[0]?.id ?? ""
+      );
     } catch (err) {
       console.error("Verification page error:", err);
       setError("Could not load your verification details. Please try again.");
@@ -208,6 +219,11 @@ export default function OwnerVerification() {
     e.preventDefault();
     setError("");
 
+    if (!propertyId) {
+      setError("Choose the property these documents are for.");
+      return;
+    }
+
     if (files.length === 0) {
       setError("Attach at least one document.");
       return;
@@ -252,7 +268,7 @@ export default function OwnerVerification() {
         .insert({
           id: requestId,
           owner_id: user.id,
-          property_id: propertyId || null,
+          property_id: propertyId,
           evidence_type: evidenceType,
           notes: notes.trim() || null,
           document_paths: documentPaths,
@@ -260,7 +276,7 @@ export default function OwnerVerification() {
 
       if (insertError) {
         if (insertError.code === "23505") {
-          throw new Error("You already have a request under review.");
+          throw new Error("This property already has a request under review.");
         }
 
         throw insertError;
@@ -268,7 +284,6 @@ export default function OwnerVerification() {
 
       setFiles([]);
       setNotes("");
-      setPropertyId("");
 
       await loadData();
     } catch (err) {
@@ -285,11 +300,25 @@ export default function OwnerVerification() {
     }
   }
 
-  const pendingRequest = requests.find((item) => item.status === "pending");
-  const lastRequest = requests[0];
+  const propertyName = (id: string) =>
+    properties.find((item) => item.id === id)?.name ?? "Property";
+
+  const pendingRequests = requests.filter((item) => item.status === "pending");
+  const pendingIds = new Set(pendingRequests.map((item) => item.property_id));
+
+  const selectableProperties = properties.filter(
+    (item) =>
+      item.authorization_status === "not_submitted" && !pendingIds.has(item.id)
+  );
+
+  const selectedLastRequest = requests.find(
+    (item) => item.property_id === propertyId
+  );
+
   const showRejection =
-    !pendingRequest && lastRequest && lastRequest.status === "rejected";
-  const showForm = !ownerVerified && !pendingRequest;
+    selectedLastRequest && selectedLastRequest.status === "rejected";
+
+  const hasProperties = properties.length > 0;
 
   const inputClass =
     "w-full rounded-xl border border-gray-700 bg-gray-950 px-4 py-3 text-white placeholder:text-gray-600 outline-none transition focus:border-green-500 focus:ring-1 focus:ring-green-500";
@@ -328,13 +357,13 @@ export default function OwnerVerification() {
           </p>
 
           <h2 className="mt-2 text-3xl font-bold tracking-tight text-white sm:text-4xl">
-            Verify your account
+            Verify your property
           </h2>
 
           <p className="mt-3 max-w-2xl leading-7 text-gray-400">
-            Show that you own a property or are authorized to advertise it.
-            Verified owners keep their listings live and can list more
-            properties.
+            Prove that you own a property or are authorized to advertise it.
+            Each property is verified separately, so documents for one property
+            never cover another.
           </p>
         </div>
 
@@ -344,59 +373,22 @@ export default function OwnerVerification() {
           </div>
         ) : (
           <div className="space-y-6">
-            {ownerVerified && (
-              <div className="rounded-2xl border border-green-900 bg-green-950/30 p-6">
+            {pendingRequests.map((item) => (
+              <div
+                key={item.id}
+                className="rounded-2xl border border-amber-800 bg-amber-950/30 p-6"
+              >
                 <h3 className="text-lg font-bold text-white">
-                  Your account is verified
-                </h3>
-
-                <p className="mt-2 text-sm leading-6 text-green-200/70">
-                  You can list more properties. A verified account is separate
-                  from property verification, which confirms the property
-                  itself.
-                </p>
-
-                <button
-                  type="button"
-                  onClick={() => router.push("/property-owners/dashboard")}
-                  className="mt-5 rounded-full bg-green-600 px-6 py-2.5 text-sm font-semibold text-white transition hover:bg-green-500"
-                >
-                  Go to dashboard
-                </button>
-              </div>
-            )}
-
-            {pendingRequest && (
-              <div className="rounded-2xl border border-amber-800 bg-amber-950/30 p-6">
-                <h3 className="text-lg font-bold text-white">
-                  Your documents are under review
+                  {propertyName(item.property_id)} is under review
                 </h3>
 
                 <p className="mt-2 text-sm leading-6 text-amber-200/80">
-                  We received your {getEvidenceLabel(pendingRequest.evidence_type).toLowerCase()} on{" "}
-                  {formatDate(pendingRequest.created_at)}. This page will
-                  update once the review is done.
+                  We received your {getEvidenceLabel(item.evidence_type).toLowerCase()} on{" "}
+                  {formatDate(item.created_at)}. This page will update once the
+                  review is done.
                 </p>
               </div>
-            )}
-
-            {showRejection && lastRequest && (
-              <div className="rounded-2xl border border-red-900 bg-red-950/30 p-6">
-                <h3 className="text-lg font-bold text-white">
-                  Your last request was not approved
-                </h3>
-
-                {lastRequest.rejection_reason && (
-                  <p className="mt-2 text-sm leading-6 text-red-200/80">
-                    {lastRequest.rejection_reason}
-                  </p>
-                )}
-
-                <p className="mt-2 text-sm leading-6 text-red-200/80">
-                  You can submit new documents below.
-                </p>
-              </div>
-            )}
+            ))}
 
             {error && (
               <div className="rounded-xl border border-red-900 bg-red-950 p-4 text-sm text-red-300">
@@ -404,7 +396,50 @@ export default function OwnerVerification() {
               </div>
             )}
 
-            {showForm && (
+            {!hasProperties && (
+              <div className={cardClass}>
+                <h3 className="text-lg font-bold text-white">
+                  You have no listings yet
+                </h3>
+
+                <p className="mt-2 text-sm leading-6 text-gray-400">
+                  List a property first, then come back here to verify it.
+                </p>
+
+                <button
+                  type="button"
+                  onClick={() => router.push("/property-owners/list-property")}
+                  className="mt-5 rounded-full bg-green-600 px-6 py-2.5 text-sm font-semibold text-white transition hover:bg-green-500"
+                >
+                  List a property
+                </button>
+              </div>
+            )}
+
+            {hasProperties &&
+              selectableProperties.length === 0 &&
+              pendingRequests.length === 0 && (
+                <div className="rounded-2xl border border-green-900 bg-green-950/30 p-6">
+                  <h3 className="text-lg font-bold text-white">
+                    Nothing to verify right now
+                  </h3>
+
+                  <p className="mt-2 text-sm leading-6 text-green-200/70">
+                    All of your listings have been verified. When you add a
+                    new property, you can verify it here.
+                  </p>
+
+                  <button
+                    type="button"
+                    onClick={() => router.push("/property-owners/dashboard")}
+                    className="mt-5 rounded-full bg-green-600 px-6 py-2.5 text-sm font-semibold text-white transition hover:bg-green-500"
+                  >
+                    Go to dashboard
+                  </button>
+                </div>
+              )}
+
+            {selectableProperties.length > 0 && (
               <form onSubmit={handleSubmit} className={cardClass}>
                 <h3 className="text-xl font-bold text-white">
                   Submit your proof
@@ -414,6 +449,39 @@ export default function OwnerVerification() {
                   Your documents are private. Only the MyKove review team can
                   open them.
                 </p>
+
+                {showRejection && selectedLastRequest && (
+                  <div className="mt-6 rounded-xl border border-red-900 bg-red-950/30 p-4">
+                    <p className="text-sm font-semibold text-white">
+                      Your last request for this property was not approved
+                    </p>
+
+                    {selectedLastRequest.rejection_reason && (
+                      <p className="mt-1 text-sm leading-6 text-red-200/80">
+                        {selectedLastRequest.rejection_reason}
+                      </p>
+                    )}
+                  </div>
+                )}
+
+                <div className="mt-6">
+                  <label className={labelClass}>
+                    Which property are you verifying?
+                  </label>
+
+                  <select
+                    required
+                    value={propertyId}
+                    onChange={(e) => setPropertyId(e.target.value)}
+                    className={inputClass}
+                  >
+                    {selectableProperties.map((item) => (
+                      <option key={item.id} value={item.id}>
+                        {item.name}
+                      </option>
+                    ))}
+                  </select>
+                </div>
 
                 <div className="mt-6">
                   <p className={labelClass}>What are you providing?</p>
@@ -450,28 +518,6 @@ export default function OwnerVerification() {
                     ))}
                   </div>
                 </div>
-
-                {properties.length > 0 && (
-                  <div className="mt-6">
-                    <label className={labelClass}>
-                      Which property is this for? (optional)
-                    </label>
-
-                    <select
-                      value={propertyId}
-                      onChange={(e) => setPropertyId(e.target.value)}
-                      className={inputClass}
-                    >
-                      <option value="">All my listings</option>
-
-                      {properties.map((property) => (
-                        <option key={property.id} value={property.id}>
-                          {property.name}
-                        </option>
-                      ))}
-                    </select>
-                  </div>
-                )}
 
                 <div className="mt-6">
                   <label className={labelClass}>
@@ -575,11 +621,12 @@ export default function OwnerVerification() {
                       >
                         <div>
                           <p className="text-sm font-medium text-white">
-                            {getEvidenceLabel(item.evidence_type)}
+                            {propertyName(item.property_id)}
                           </p>
 
                           <p className="mt-0.5 text-xs text-gray-500">
-                            Submitted {formatDate(item.created_at)}
+                            {getEvidenceLabel(item.evidence_type)} · Submitted{" "}
+                            {formatDate(item.created_at)}
                           </p>
                         </div>
 
