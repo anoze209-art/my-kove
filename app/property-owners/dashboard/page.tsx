@@ -19,7 +19,30 @@ type Property = {
   cover_photo: string | null;
 };
 
+type Draft = {
+  id: string;
+  updated_at: string;
+  data: {
+    propertyName?: string;
+    propertyType?: string;
+    customType?: string;
+    location?: string;
+    price?: string;
+    pricePeriod?: string;
+    photos?: { id: string; storagePath: string }[];
+  } | null;
+};
+
 const PHOTO_BUCKET = "property photo";
+const DRAFT_BUCKET = "property-draft-photos";
+
+function formatDraftDate(value: string) {
+  return new Date(value).toLocaleDateString("en-NG", {
+    day: "numeric",
+    month: "short",
+    year: "numeric",
+  });
+}
 
 function getPhotoUrl(path: string | null) {
   if (!path) return null;
@@ -104,6 +127,8 @@ export default function PropertyOwnersDashboard() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [signingOut, setSigningOut] = useState(false);
+    const [drafts, setDrafts] = useState<Draft[]>([]);
+  const [deletingDraftId, setDeletingDraftId] = useState<string | null>(null);
 
   useEffect(() => {
     loadProperties();
@@ -123,7 +148,17 @@ export default function PropertyOwnersDashboard() {
         router.replace("/property-owners/sign-in");
         return;
       }
+      const { data: draftRows, error: draftsError } = await supabase
+        .from("property_drafts")
+        .select("id, updated_at, data")
+        .eq("owner_id", user.id)
+        .order("updated_at", { ascending: false });
 
+      if (draftsError) {
+        console.error("Drafts error:", draftsError);
+      } else {
+        setDrafts((draftRows || []) as Draft[]);
+      }
       const { data: organization, error: organizationError } = await supabase
         .from("organization")
         .select("id")
@@ -167,7 +202,54 @@ export default function PropertyOwnersDashboard() {
       setLoading(false);
     }
   }
+  async function handleDeleteDraft(draft: Draft) {
+    const confirmed = window.confirm(
+      "Delete this draft and its saved photos? This cannot be undone."
+    );
 
+    if (!confirmed) return;
+
+    setDeletingDraftId(draft.id);
+    setError("");
+
+    try {
+      const photoPaths = (draft.data?.photos ?? [])
+        .map((photo) => photo.storagePath)
+        .filter(Boolean);
+
+      if (photoPaths.length > 0) {
+        const { error: removeError } = await supabase.storage
+          .from(DRAFT_BUCKET)
+          .remove(photoPaths);
+
+        if (removeError) {
+          throw removeError;
+        }
+      }
+
+      const { error: deleteError } = await supabase
+        .from("property_drafts")
+        .delete()
+        .eq("id", draft.id);
+
+      if (deleteError) {
+        throw deleteError;
+      }
+
+      setDrafts((current) => current.filter((item) => item.id !== draft.id));
+    } catch (err) {
+      console.error("Delete draft error:", err);
+
+      const message =
+        err && typeof err === "object" && "message" in err
+          ? String(err.message)
+          : "Could not delete this draft.";
+
+      setError(message);
+    } finally {
+      setDeletingDraftId(null);
+    }
+  }
   async function handleSignOut() {
     setSigningOut(true);
 
@@ -502,7 +584,95 @@ export default function PropertyOwnersDashboard() {
             </button>
           </div>
         </div>
+        {drafts.length > 0 && (
+          <div className="mt-10">
+            <div className="mb-5">
+              <h3 className="text-xl font-bold text-white">
+                Your Drafts
+              </h3>
 
+              <p className="mt-1 text-sm text-gray-400">
+                Unfinished listings you can come back to. Drafts are not
+                visible to the public. You can keep up to 5.
+              </p>
+            </div>
+
+            <div className="grid gap-5 md:grid-cols-2">
+              {drafts.map((draft) => {
+                const draftType =
+                  draft.data?.propertyType === "Other"
+                    ? draft.data?.customType || "Other"
+                    : draft.data?.propertyType;
+
+                const photoCount = draft.data?.photos?.length ?? 0;
+
+                return (
+                  <div
+                    key={draft.id}
+                    className="rounded-2xl border border-gray-800 bg-gray-900 p-5 shadow-lg"
+                  >
+                    <div className="flex items-start justify-between gap-4">
+                      <div>
+                        <h4 className="text-lg font-bold text-white">
+                          {draft.data?.propertyName?.trim() ||
+                            "Untitled draft"}
+                        </h4>
+
+                        <p className="mt-1 text-sm text-gray-400">
+                          {[draft.data?.location, draftType]
+                            .filter(Boolean)
+                            .join(" · ") || "No details yet"}
+                        </p>
+                      </div>
+
+                      <span className="shrink-0 rounded-full bg-gray-800 px-3 py-1 text-xs font-semibold text-gray-400">
+                        Draft
+                      </span>
+                    </div>
+
+                    <div className="mt-4 flex flex-wrap gap-4 text-sm text-gray-400">
+                      {draft.data?.price && (
+                        <span>
+                          ₦{Number(draft.data.price).toLocaleString()}{" "}
+                          {draft.data.pricePeriod}
+                        </span>
+                      )}
+
+                      <span>
+                        {photoCount} {photoCount === 1 ? "photo" : "photos"}
+                      </span>
+
+                      <span>Saved {formatDraftDate(draft.updated_at)}</span>
+                    </div>
+
+                    <div className="mt-5 flex gap-3">
+                      <button
+                        onClick={() =>
+                          router.push(
+                            `/property-owners/list-property?draft=${draft.id}`
+                          )
+                        }
+                        className="rounded-full bg-green-600 px-5 py-2.5 text-sm font-semibold text-white transition hover:bg-green-500"
+                      >
+                        Continue editing
+                      </button>
+
+                      <button
+                        onClick={() => handleDeleteDraft(draft)}
+                        disabled={deletingDraftId === draft.id}
+                        className="rounded-full border border-gray-700 px-5 py-2.5 text-sm font-semibold text-gray-300 transition hover:border-red-500 hover:text-red-400 disabled:opacity-60"
+                      >
+                        {deletingDraftId === draft.id
+                          ? "Deleting..."
+                          : "Delete"}
+                      </button>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        )}
         <div className="mt-10">
           <div className="mb-5">
             <h3 className="text-xl font-bold text-white">
