@@ -185,7 +185,7 @@ export default function PropertyDetail() {
 
   const photoUrls = (property.photos ?? []).map((path) => getPhotoUrl(path));
   const activeUrl = getPhotoUrl(activePhoto);
-const ownerPending = property.authorization_status === "not_submitted";nst provisionalDaysLeft = getProvisionalDaysLeft(property);
+  const ownerPending = property.authorization_status === "not_submitted";
 
   return (
     <main className="min-h-screen bg-gray-950 text-gray-100">
