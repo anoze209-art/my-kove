@@ -16,7 +16,7 @@ type VerificationRequest = {
 type OwnerProperty = {
   id: string;
   name: string;
-  authorization_status: string | null;
+  verified: boolean;
 };
 
 const DOCUMENT_BUCKET = "verification-documents";
@@ -140,7 +140,7 @@ export default function OwnerVerification() {
       if (organization) {
         const { data: propertyRows, error: propertiesError } = await supabase
           .from("properties")
-          .select("id, name, authorization_status")
+         .select("id, name, verified")
           .eq("organization_id", organization.id)
           .order("created_at", { ascending: false });
 
@@ -161,7 +161,7 @@ export default function OwnerVerification() {
 
       const selectable = loadedProperties.filter(
         (item) =>
-          item.authorization_status === "not_submitted" &&
+          !item.verified &&
           !pendingIds.has(item.id)
       );
 
@@ -308,7 +308,7 @@ export default function OwnerVerification() {
 
   const selectableProperties = properties.filter(
     (item) =>
-      item.authorization_status === "not_submitted" && !pendingIds.has(item.id)
+     !item.verified&& !pendingIds.has(item.id)
   );
 
   const selectedLastRequest = requests.find(
